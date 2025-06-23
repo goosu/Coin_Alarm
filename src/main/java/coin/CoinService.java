@@ -1,6 +1,8 @@
 // src/main/java/coinalarm/Coin_Alarm/coin/CoinService.java
-package coin; // <-- 실제 프로젝트 패키지 이름 + 하위 패키지
+//package coin; // <-- 실제 프로젝트 패키지 이름 + 하위 패키지
+package coin;
 
+import coin.CoinDao;
 import org.springframework.beans.factory.annotation.Autowired; // 의존성 주입을 위해 필요합니다.
 import org.springframework.stereotype.Service; // 이 클래스가 Spring의 Service 컴포넌트임을 명시합니다. Spring Bean으로 등록됩니다.
 import org.springframework.transaction.annotation.Transactional; // 트랜잭션 관리를 위해 필요합니다.
@@ -33,8 +35,8 @@ public class CoinService {
    * @param small 소형 코인 포함 여부 (true/false)
    * @return 필터링된 코인 목록 (List<Coin>)
    */
-  public List<Coin> getFilteredCoins(boolean large, boolean mid, boolean small) {
-    List<Coin> filteredCoins = new ArrayList<>(); // 필터링된 코인을 담을 빈 리스트를 생성합니다.
+  public List<coin.Coin> getFilteredCoins(boolean large, boolean mid, boolean small) {
+    List<coin.Coin> filteredCoins = new ArrayList<>(); // 필터링된 코인을 담을 빈 리스트를 생성합니다.
 
     // 시가총액 기준 정의 (이전 코드와 동일한 예시 기준 사용)
     // 대형: 5조 원 (5e12) 이상

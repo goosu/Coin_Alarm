@@ -1,6 +1,10 @@
 // src/main/java/coinalarm/Coin_Alarm/coin/CoinController.java
-package coin; // <-- 실제 프로젝트 패키지 이름 + 하위 패키지
+//package coin; // <-- 실제 프로젝트 패키지 이름 + 하위 패키지
+//package coinalarm.Coin_Alarm;
+package coin;
 
+import coin.Coin;
+import coin.CoinService;
 import org.springframework.beans.factory.annotation.Autowired; // 의존성 주입을 위해 필요합니다.
 import org.springframework.web.bind.annotation.CrossOrigin; // CORS(Cross-Origin Resource Sharing) 설정을 위해 필요합니다.
 import org.springframework.web.bind.annotation.GetMapping; // HTTP GET 요청을 처리하는 메서드임을 나타냅니다.
@@ -24,7 +28,7 @@ public class CoinController {
 
   // 생성자 주입: Spring이 CoinService 객체를 생성자 인자로 넘겨주면서 이 Controller 객체를 생성합니다.
   @Autowired
-  public CoinController(CoinService coinService) {
+  public CoinController(coin.CoinService coinService) {
     this.coinService = coinService; // 주입받은 CoinService 객체를 필드에 할당합니다.
   }
 
@@ -39,7 +43,7 @@ public class CoinController {
    * @return 필터링된 코인 목록 (List<Coin> 객체 리스트, Spring이 자동으로 JSON으로 변환하여 응답)
    */
   @GetMapping("/coins") // @GetMapping("/coins"): "/api" 경로에 "/coins"를 더한 "/api/coins" 경로로 들어오는 HTTP GET 요청을 이 메서드가 처리하도록 매핑합니다.
-  public List<Coin> getFilteredCoins(
+  public List<coin.Coin> getFilteredCoins(
           @RequestParam(defaultValue = "true") boolean large, // @RequestParam: HTTP 요청의 쿼리 파라미터 'large' 값을 받아서 boolean 타입의 large 변수에 할당합니다. defaultValue = "true"는 파라미터가 없을 경우 기본값을 true로 설정합니다.
           @RequestParam(defaultValue = "true") boolean mid,   // 쿼리 파라미터 'mid' 값을 받습니다.
           @RequestParam(defaultValue = "true") boolean small  // 쿼리 파라미터 'small' 값을 받습니다.
