@@ -10,6 +10,20 @@ import jakarta.persistence.Id; // 이 필드가 엔티티의 기본 키(Primary 
 
 import java.util.List; // 알람 목록을 저장하기 위한 List 타입
 
+
+/*[2025.6.24 ADD] STR*/
+import lombok.Getter; // Lombok 어노테이션: 모든 필드에 대한 Getter 메서드를 자동으로 생성합니다.
+import lombok.NoArgsConstructor; // Lombok 어노테이션: 인자 없는 기본 생성자를 자동으로 생성합니다.
+import lombok.AllArgsConstructor; // Lombok 어노테이션: 모든 필드를 인자로 받는 생성자를 자동으로 생성합니다.
+import lombok.Setter; // Lombok 어노테이션: 모든 필드에 대한 Setter 메서드를 자동으로 생성합니다. (필요 시)
+/*[2025.6.24 ADD] END*/
+
+/*[2025.6.24 ADD] STR*/
+@Getter // @Getter 어노테이션으로 모든 필드의 Getter 메서드를 자동으로 생성합니다.
+@Setter // @Setter 어노테이션으로 모든 필드의 Setter 메서드를 자동으로 생성합니다.
+@NoArgsConstructor // @NoArgsConstructor 어노테이션으로 인자 없는 기본 생성자를 자동으로 생성합니다.
+@AllArgsConstructor // @AllArgsConstructor 어노테이션으로 모든 필드를 인자로 받는 생성자를 자동으로 생성합니다.
+/*[2025.6.24 ADD] END*/
 @Entity // @Entity 어노테이션을 붙여서 이 클래스가 JPA 엔티티임을 선언합니다.
 public class Coin {
 
@@ -17,7 +31,6 @@ public class Coin {
   @GeneratedValue(strategy = GenerationType.IDENTITY) // @GeneratedValue: 기본 키 값을 자동으로 생성합니다.
   // GenerationType.IDENTITY: 데이터베이스의 자동 증가(AUTO_INCREMENT) 기능을 사용합니다. (MySQL, H2 등)
   private Long id; // 코인의 고유 식별자입니다. 데이터베이스 테이블의 Primary Key 컬럼과 매핑됩니다.
-
   private String name; // 코인 이름 (예: Bitcoin). 데이터베이스 테이블의 컬럼과 매핑됩니다.
   private Long marketCap; // 시가총액 (예: 800000000000). 데이터베이스 테이블의 컬럼과 매핑됩니다.
   private String priceChange; // 가격 변동률 (예: "+2.3%"). 데이터베이스 테이블의 컬럼과 매핑됩니다.

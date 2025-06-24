@@ -73,7 +73,7 @@ public class CoinService {
     List<Coin> initialCoins = new ArrayList<>();
     initialCoins.add(new Coin("Bitcoin", 800_000_000_000L, "+2.3%", 20_000_000_000L, List.of("미체결", "1분거래대금10억")));
     initialCoins.add(new Coin("Ethereum", 300_000_000_000L, "-1.1%", 10_000_000_000L, List.of("1회체결3억")));
-    initialCoins.add(new Coin("SmallCoin", 40_000_000_000L, "+0.5%", 30_000_000L, List.of())); // 시가총액 400억으로 수정 (소형 범위에 맞게)
+    initialCoins.add(new Coin("SmallCoin", 50_000_000_000L, "+0.5%", 30_000_000L, List.of())); // 시가총액 500억으로 수정 (소형 범위에 맞게)
     initialCoins.add(new Coin("LargeCoinExample", 6_000_000_000_000L, "+1.0%", 50_000_000_000L, List.of("대형코인알람"))); // 대형 예시 추가
     initialCoins.add(new Coin("MidCoinExample", 1_000_000_000_000L, "-0.5%", 15_000_000_000L, List.of("중형코인알람"))); // 중형 예시 추가
 

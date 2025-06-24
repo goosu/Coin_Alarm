@@ -1,0 +1,49 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.2'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'coinalarm'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'com.h2database:h2'
+
+	// Lombok 의존성 추가: Getter, Setter, 생성자 등을 어노테이션으로 자동 생성하여 코드량을 줄여줍니다.
+	// compileOnly: 컴파일 시에만 필요하고, 런타임 JAR에는 포함되지 않습니다.
+	// annotationProcessor: 어노테이션 프로세서로 동작하여 컴파일 시점에 코드를 생성합니다.
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testCompileOnly 'org.projectlombok:lombok'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+
+}
+// 가상 스레드(Virtual Threads) 활성화 설정: Java 21의 핵심 기능으로, 동시성 처리 성능을 향상시킵니다.
+// Spring Boot 3.2부터 지원되며, 기존 서블릿 기반 애플리케이션의 확장성을 크게 높여줍니다.
+tasks.named('bootRun') {
+	jvmArgs = ["--enable-preview"] // Java 21의 프리뷰 기능 활성화 (가상 스레드 사용을 위해 필요)
+	systemProperties = [
+			'spring.threads.virtual.enabled': 'true' // Spring Boot에서 가상 스레드 활성화
+	]
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	jvmArgs = ["--enable-preview"] // 테스트 시에도 가상 스레드 프리뷰 활성화
+}
