@@ -60,7 +60,7 @@ public class CoinController {
     // .map(CoinResponseDto::fromEntity): 각 Coin 객체에 대해 CoinResponseDto.fromEntity 메서드를 적용하여 변환합니다.
     // .collect(Collectors.toList()): 변환된 DTO들을 다시 리스트로 수집합니다.
     return coins.stream()
-            .map(coinalarm.Coin_Alarm.coin.CoinResponseDto::fromEntity)
+            .map(coin.CoinResponseDto::fromEntity)
             .collect(Collectors.toList());
 
   }

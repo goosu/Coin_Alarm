@@ -21,6 +21,9 @@ public class CoinResponseDto {
   private Long volume; // 거래대금
   private List<String> alarm; // 알람 목록
 
+  public CoinResponseDto(Long id, String name, Long marketCap, String priceChange, Long volume, List<String> alarm) {
+  }
+
   // 엔티티(Coin) 객체를 DTO(CoinResponseDto) 객체로 변환하는 정적 팩토리 메서드입니다.
   // 이렇게 하면 변환 로직이 DTO 클래스 내부에 캡슐화되어 관리하기 용이합니다.
   public static CoinResponseDto fromEntity(Coin coin) {
