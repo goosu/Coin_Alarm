@@ -1,4 +1,6 @@
 // frontend/src/main.tsx
+// 이 파일을 열어 기존 내용을 모두 지우고 아래 코드를 붙여넣으세요.
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
