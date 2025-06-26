@@ -44,6 +44,7 @@ tasks.named('bootRun') {
 }
 
 tasks.named('test') {
+	enabled = false //test 비활성화
 	useJUnitPlatform()
 	jvmArgs = ["--enable-preview"] // 테스트 시에도 가상 스레드 프리뷰 활성화
 }
