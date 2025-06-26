@@ -1,39 +1,43 @@
 package coin;// src/main/java/coinalarm/Coin_Alarm/coin/CoinResponseDto.java
-//package coinalarm.Coin_Alarm.coin;
 
+// ... (다른 임포트들)
 import coin.Coin;
-import lombok.Getter; // Lombok 어노테이션: 모든 필드에 대한 Getter 메서드를 자동으로 생성합니다.
-import lombok.NoArgsConstructor; // Lombok 어노테이션: 인자 없는 기본 생성자를 자동으로 생성합니다.
-import lombok.AllArgsConstructor; // Lombok 어노테이션: 모든 필드를 인자로 받는 생성자를 자동으로 생성합니다.
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-import java.util.List;
-
-// Coin 엔티티의 데이터를 프론트엔드로 전송하기 위한 DTO (Data Transfer Object) 클래스입니다.
-// 엔티티를 직접 노출하지 않고 DTO를 사용함으로써, 데이터 계약을 명확히 하고 보안 및 유연성을 높입니다.
-@Getter // @Getter 어노테이션으로 모든 필드의 Getter 메서드를 자동으로 생성합니다.
-@NoArgsConstructor // @NoArgsConstructor 어노테이션으로 기본 생성자를 자동으로 생성합니다.
-@AllArgsConstructor // @AllArgsConstructor 어노테이션으로 모든 필드를 인자로 받는 생성자를 자동으로 생성합니다.
+@Getter
+@NoArgsConstructor // <-- 이 어노테이션이 인자 없는 생성자를 만들어 줍니다.
+@AllArgsConstructor // <-- 이 어노테이션이 모든 필드를 인자로 받는 생성자를 만들어 줍니다.
 public class CoinResponseDto {
-  private Long id; // 코인 고유 식별자
-  private String name; // 코인 이름
-  private Long marketCap; // 시가총액
-  private String priceChange; // 가격 변동률
-  private Long volume; // 거래대금
-  private List<String> alarm; // 알람 목록
+  // ... (필드들)
 
-  public CoinResponseDto(Long id, String name, Long marketCap, String priceChange, Long volume, List<String> alarm) {
-  }
+  // 엔티티(Coin) 객체를 DTO(CoinResponseDto) 객체로 변환하는 정적 팩토리 메서드는 그대로 두세요.
+  // 이 메서드는 Lombok이 생성하는 생성자와는 다릅니다.
+//  public static CoinResponseDto fromEntity(Coin coin) {
+//    return new CoinResponseDto(
+//            coin.getId(),
+//            coin.getName(),
+//            coin.getMarketCap(),
+//            coin.getPriceChange(),
+//            coin.getVolume(),
+//            coin.getAlarm()
+//    );
+//  }
 
-  // 엔티티(Coin) 객체를 DTO(CoinResponseDto) 객체로 변환하는 정적 팩토리 메서드입니다.
-  // 이렇게 하면 변환 로직이 DTO 클래스 내부에 캡슐화되어 관리하기 용이합니다.
-  public static CoinResponseDto fromEntity(Coin coin) {
-    return new CoinResponseDto(
-            coin.getId(),
-            coin.getName(),
-            coin.getMarketCap(),
-            coin.getPriceChange(),
-            coin.getVolume(),
-            coin.getAlarm()
-    );
-  }
+  // Lombok 어노테이션을 사용했으므로, 아래의 수동 작성된 생성자는 삭제해야 합니다.
+  // 이 부분이 에러의 원인입니다.
+
+    public CoinResponseDto() { // <-- 이 부분을 삭제하세요.
+    }
+
+    public CoinResponseDto(Long id, String name, Long marketCap, String priceChange, Long volume, List<String> alarm) { // <-- 이 부분을 삭제하세요.
+//        this.id = id;
+//        this.name = name;
+//        this.marketCap = marketCap;
+//        this.priceChange = priceChange;
+//        this.volume = volume;
+//        this.alarm = alarm;
+    }
+
 }
