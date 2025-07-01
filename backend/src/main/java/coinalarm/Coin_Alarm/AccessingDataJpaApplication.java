@@ -1,8 +1,9 @@
 // src/main/java/coinalarm/Coin_Alarm/AccessingDataJpaApplication.java
 package coinalarm.Coin_Alarm; // <-- 실제 프로젝트 기본 패키지 이름
 
+import coinalarm.Coin_Alarm.coin.CoinService;
 // 필요한 스프링 부트 및 기타 라이브러리 임포트
-import coin.CoinService; // <-- CoinService 클래스 임포트 (실제 패키지 경로 사용)
+//import coin.CoinService; // <-- CoinService 클래스 임포트 (실제 패키지 경로 사용)
 import org.slf4j.Logger; // 로깅을 위해 필요합니다.
 import org.slf4j.LoggerFactory; // 로거 객체를 생성하는 팩토리입니다.
 import org.springframework.boot.CommandLineRunner; // 애플리케이션 시작 시 특정 코드를 실행하기 위한 인터페이스입니다.

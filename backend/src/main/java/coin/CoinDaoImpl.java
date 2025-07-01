@@ -1,5 +1,8 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinDaoImpl.java
-package coin; // <-- 코인 관련 클래스들의 패키지
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
+
+import coinalarm.Coin_Alarm.coin.CoinDao;
 
 import org.springframework.stereotype.Repository; // Spring의 Repository 컴포넌트임을 명시
 import org.springframework.transaction.annotation.Transactional; // 트랜잭션 관리를 위해 필요

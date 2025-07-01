@@ -1,6 +1,6 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/Coin.java
-package coin; // <-- 코인 관련 클래스들의 패키지
-
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
 // Jakarta Persistence API (JPA) 관련 임포트 (Spring Boot 3.x부터 'jakarta' 사용)
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;

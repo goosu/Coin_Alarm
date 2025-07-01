@@ -1,5 +1,6 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinDao.java
-package coin; // <-- 코인 관련 클래스들의 패키지
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
 
 import java.util.List; // List 타입을 사용하기 위한 임포트
 import java.util.Optional; // Optional 타입을 사용하기 위한 임포트

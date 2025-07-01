@@ -1,5 +1,6 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinResponseDto.java
-package coin; // <-- 코인 관련 클래스들의 패키지
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
 
 // Lombok 어노테이션
 import lombok.Getter;

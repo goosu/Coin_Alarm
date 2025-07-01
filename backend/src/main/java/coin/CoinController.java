@@ -1,5 +1,9 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinController.java
-package coin; // <-- 코인 관련 클래스들의 패키지
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
+
+import coinalarm.Coin_Alarm.coin.CoinService;
+import coinalarm.Coin_Alarm.coin.CoinResponseDto;
 
 import org.springframework.beans.factory.annotation.Autowired; // 의존성 주입을 위해 필요
 import org.springframework.web.bind.annotation.CrossOrigin; // CORS 설정을 위해 필요

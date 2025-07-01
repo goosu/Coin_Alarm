@@ -1,5 +1,6 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinService.java
-package coin; // <-- 코인 관련 클래스들의 패키지
+//package coin; // <-- 코인 관련 클래스들의 패키지
+package coinalarm.Coin_Alarm.coin;
 
 import org.springframework.beans.factory.annotation.Autowired; // 의존성 주입을 위해 필요
 import org.springframework.stereotype.Service; // Spring의 Service 컴포넌트임을 명시
