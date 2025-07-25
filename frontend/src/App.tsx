@@ -35,9 +35,11 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, callback: () => void
  * 백엔드 CoinResponseDto의 필드와 일치해야 합니다.
  */
 interface Coin {
-  id: number;
+  id: number | null;
   name: string;
-  marketCap: number;
+  simbol: string;
+  currentPrice: number;
+  //marketCap: number;
   priceChange: string;
   volume: number;
   alarm: string[]; // 백엔드 DTO의 필드명 'alarm'과 일치
@@ -187,8 +189,9 @@ export default function App() {
                 <h3 className="font-bold text-lg mb-2">옵션 1 컨텐츠</h3>
                 <p>전체 현물 선물</p> //해당칸 버튼식에 따라 거래소가 보이게
                 //미체결의 경우에는 선물만 표시
-                <ul className="list-disc list-inside">
+                <ul className="list-disc-1 list-inside">
                   //거래소들은 체크박스 두어서 체크로 해당 거래소에서 받는 api만 보이게
+                  <li>거래소 선택 </li>
                   <li>항목 1-1 현물거래소들 선택하게 </li>
                   <li>항목 1-2 선물거래소들 선택가능하게</li>
                 </ul>
@@ -198,7 +201,10 @@ export default function App() {
               <div>
                 <h3 className="font-bold text-lg mb-2">옵션 2 컨텐츠</h3>
                 <p>여기는 옵션 2에 대한 상세 내용입니다.</p>
-                <p>더 많은 정보가 여기에 표시됩니다.</p>
+                <ul className="list-disc-2 list-inside">
+                  <li>알람로그에 대한 옵션</li>
+                  <li>미체결,뉴스,지갑이동,해당심볼관련만?,소리,트위터카톡알람(등록),휴대폰알람(등록)</li>
+                </ul>
               </div>
             )}
             {selectedOption === 3 && (
@@ -257,19 +263,38 @@ export default function App() {
                 <div className="bg-gray-100 p-2 text-center rounded">DOGE</div>
               </div>
 
-              {/* 코인 정보 출력 (리스트박스 형태): 백엔드에서 가져온 코인 데이터 목록 */}
-              {/* flex-1: 남은 공간 모두 차지, overflow-y-auto: 세로 스크롤, border: 테두리, rounded: 둥근 모서리, p-2: 패딩, space-y-1: 자식 요소 간 세로 간격 */}
-              <div className="flex-1 overflow-y-auto border rounded p-2 space-y-1">
+              {/* --- 코인 정보 출력 (테이블 형태) 수정 시작 --- */}
+              <div className="flex-1 overflow-y-auto border rounded bg-gray-50"> {/* 배경색 추가 */}
                 {coins?.length === 0 ? (
-                  <p className="text-gray-500">조건에 맞는 코인이 없습니다.</p>
+                  <p className="text-gray-500 p-4">조건에 맞는 코인이 없습니다.</p>
                 ) : (
-                  coins?.map((coin) => (
-                    <div key={coin.id} className="p-2 bg-yellow-50 rounded shadow-sm text-sm">
-                      <span className="font-medium">{coin.name}:</span> 변동률 {coin.priceChange}, 거래대금 {coin.volume.toLocaleString()}원
-                    </div>
-                  ))
+                  <table className="min-w-full table-auto text-left text-sm"> {/* 최소 너비, 자동 테이블 레이아웃, 좌측 정렬, 작은 글씨 */}
+                    <thead className="bg-gray-200 sticky top-0"> {/* 헤더 고정 */}
+                      <tr>
+                        <th className="py-2 px-3 border-b">Symbol</th>
+                        <th className="py-2 px-3 border-b">현재가</th> {/* FreeCH 대신 현재가로 변경 */}
+                        <th className="py-2 px-3 border-b">24H 거래대금</th> {/* FreeVOL 대신 24H 거래대금으로 변경 */}
+                        <th className="py-2 px-3 border-b">유지율</th>
+                        <th className="py-2 px-3 border-b">전일대비</th>
+                        <th className="py-2 px-3 border-b">시총</th> {/* 시가총액 */}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {coins?.map((coin) => (
+                        <tr key={coin.name || coin.id} className="border-b hover:bg-gray-100"> {/* name 또는 id를 key로 사용 */}
+                          <td className="py-2 px-3">{coin.symbol}</td> {/* <--- 심볼 */}
+                          <td className="py-2 px-3">{coin.currentPrice?.toLocaleString()}</td> {/* <--- 현재가 */}
+                          <td className="py-2 px-3">{coin.volume?.toLocaleString()}</td> {/* <--- 24H 거래대금 */}
+                          <td className="py-2 px-3">N/A</td> {/* <--- 유지율 (Upbit API에서 직접 제공 안함) */}
+                          <td className="py-2 px-3">{coin.priceChange}</td> {/* <--- 전일대비 */}
+                          <td className="py-2 px-3">N/A</td> {/* <--- 시총 (Upbit API에서 직접 제공 안함) */}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
+              {/* --- 코인 정보 출력 (테이블 형태) 수정 끝 --- */}
             </>
           )}
         </div>

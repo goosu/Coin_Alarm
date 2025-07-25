@@ -15,12 +15,21 @@ import java.util.List; // List 타입을 사용하기 위한 임포트
 @NoArgsConstructor // 인자 없는 기본 생성자를 자동으로 생성합니다.
 @AllArgsConstructor // 모든 필드를 인자로 받는 생성자를 자동으로 생성합니다.
 public class CoinResponseDto {
-  private Long id; // 코인 고유 식별자
-  private String name; // 코인 이름
-  private Long marketCap; // 시가총액
-  private String priceChange; // 가격 변동률
-  private Long volume; // 거래대금
+  //현재가 뿐만 아니라 임의로 바꿀값도 필요함
+  private Long id;        // 고유 ID (기존 Coin 엔티티의 ID)
+  private String name;    // 전체 마켓명 (예: KRW-BTC)
+  private String symbol;  // <--- 새로 추가: 코인 심볼 (예: BTC)
+  private Double currentPrice; // <--- 새로 추가: 현재가
+  // private Long marketCap; // <-- 삭제: 시가총액 필드는 직접 제공하지 않아 제거
+  private String priceChange; // 전일대비 변동률 (예: +2.33%)
+  private Long volume;    // 24H 거래대금
   private List<String> alarm; // 알람 목록
+//  private Long id; // 코인 고유 식별자
+//  private String name; // 코인 이름
+//  private Long marketCap; // 시가총액
+//  private String priceChange; // 가격 변동률
+//  private Long volume; // 거래대금
+//  private List<String> alarm; // 알람 목록
 
   // 엔티티(Coin) 객체를 DTO(CoinResponseDto) 객체로 변환하는 정적 팩토리 메서드입니다.
   // 이렇게 하면 변환 로직이 DTO 클래스 내부에 캡슐화되어 관리하기 용이합니다.
@@ -28,10 +37,19 @@ public class CoinResponseDto {
     return new CoinResponseDto(
             coin.getId(),
             coin.getName(),
-            coin.getMarketCap(),
+            // fromEntity에서는 symbol, currentPrice를 직접 설정하기 어려우므로 임의값 할당
+            coin.getName().split("-").length > 1 ? coin.getName().split("-")[1] : coin.getName(), // 임시 심볼 추출
+            0.0, // DB 엔티티에는 현재가 필드가 없음
+            // coin.getMarketCap(), // <-- 기존 marketCap 필드 사용
             coin.getPriceChange(),
             coin.getVolume(),
             coin.getAlarm()
+//            coin.getId(),
+//            coin.getName(),
+//            coin.getMarketCap(),
+//            coin.getPriceChange(),
+//            coin.getVolume(),
+//            coin.getAlarm()
     );
   }
 }
