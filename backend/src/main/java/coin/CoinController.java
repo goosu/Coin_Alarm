@@ -17,7 +17,7 @@ import java.util.ArrayList; // ArrayList를 사용하기 위한 임포트 (Strea
 
 @RestController // Spring Bean으로 등록되며, RESTful API 요청을 처리합니다.
 @RequestMapping("/api") // 이 컨트롤러의 모든 메서드는 "/api" 경로 아래에서 시작합니다.
-@CrossOrigin(origins = "http://localhost:3000") // 프론트엔드 개발 서버의 요청을 허용합니다. (실제 배포 시 변경 필요)
+@CrossOrigin(origins = "http://localhost:5173") // 프론트엔드 개발 서버의 요청을 허용합니다. (실제 배포 시 변경 필요)
 public class CoinController {
 
   private final CoinService coinService; // CoinService를 주입받습니다.

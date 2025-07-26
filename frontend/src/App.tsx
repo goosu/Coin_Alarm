@@ -135,7 +135,7 @@ export default function App() {
     queryFn: async () => {
       // 백엔드 API 엔드포인트 URL 구성 (백엔드가 http://localhost:8080에서 실행 가정)
 //       const apiUrl = `http://localhost:8080/api/coins?large=${filters.large}&mid=${filters.mid}&small=${filters.small}`;
-      const apiUrl = `http://localhost:8080/api/coins?all=${filters.all}&large=${filters.large}&mid=${filters.mid}&small=${filters.small}`;
+      const apiUrl = `http://localhost:8080/api/market-data?all=${filters.all}&large=${filters.large}&mid=${filters.mid}&small=${filters.small}`;
       const response = await fetch(apiUrl); // fetch API로 GET 요청
 
       // HTTP 응답 상태 코드가 200번대(성공)가 아니면 에러 발생
