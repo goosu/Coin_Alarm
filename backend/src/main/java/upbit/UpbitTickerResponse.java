@@ -21,8 +21,10 @@ public class UpbitTickerResponse {
   @JsonProperty("trade_price") // JSON의 'trade_price' 필드를 'tradePrice'에 매핑
   private Double tradePrice; // 현재가
 
-  @JsonProperty("trade_volume") // JSON의 'trade_volume' 필드를 'tradeVolume'에 매핑
-  private Double tradeVolume; // 최근 24시간 거래량
+//  @JsonProperty("trade_volume") // JSON의 'trade_volume' 필드를 'tradeVolume'에 매핑
+//  private Double tradeVolume; // 최근 24시간 거래량
+  @JsonProperty("acc_trade_price_24h") // JSON의 'acc_trade_price_24h' 필드를 'accTradePrice24h'에 매핑
+  private Double accTradePrice24h; // 24시간 누적 거래 가격
 
   @JsonProperty("change_rate") // JSON의 'change_rate' 필드를 'changeRate'에 매핑
   private Double changeRate; // 24시간 대비 변화율 (0.005 = 0.5%)

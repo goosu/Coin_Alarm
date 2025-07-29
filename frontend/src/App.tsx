@@ -38,10 +38,14 @@ interface Coin {
   id: number | null;
   name: string;
   simbol: string;
-  currentPrice: number;
+  currentPrice: number | null;
   //marketCap: number;
   priceChange: string;
-  volume: number;
+  volume: number; // 24H 거래대금 (총 누적 거래대금)
+  volume1m: number;  // 1분봉 거래대금
+  volume15m: number; // 15분봉 거래대금
+  volume1h: number;  // 1시간봉 거래대금
+
   alarm: string[]; // 백엔드 DTO의 필드명 'alarm'과 일치
 }
 
@@ -274,6 +278,9 @@ export default function App() {
                         <th className="py-2 px-3 border-b">Symbol</th>
                         <th className="py-2 px-3 border-b">현재가</th> {/* FreeCH 대신 현재가로 변경 */}
                         <th className="py-2 px-3 border-b">24H 거래대금</th> {/* FreeVOL 대신 24H 거래대금으로 변경 */}
+                        <th className="py-2 px-3 border-b">1분봉 거래대금</th>
+                        <th className="py-2 px-3 border-b">15분봉 거래대금</th>
+                        <th className="py-2 px-3 border-b">1시간봉 거래대금</th>
                         <th className="py-2 px-3 border-b">유지율</th>
                         <th className="py-2 px-3 border-b">전일대비</th>
                         <th className="py-2 px-3 border-b">시총</th> {/* 시가총액 */}
@@ -284,9 +291,31 @@ export default function App() {
                         <tr key={coin.name || coin.id} className="border-b hover:bg-gray-100"> {/* name 또는 id를 key로 사용 */}
                           <td className="py-2 px-3">{coin.symbol}</td> {/* <--- 심볼 */}
                           <td className="py-2 px-3">{coin.currentPrice?.toLocaleString()}</td> {/* <--- 현재가 */}
-                          <td className="py-2 px-3">{coin.volume?.toLocaleString()}</td> {/* <--- 24H 거래대금 */}
+                          <td className="py-2 px-3">
+                            {coin.volume != null ?
+                              `${Math.floor(coin.volume / 1_000_000).toLocaleString()} 백만` // 백만 단위로 나눈 후 소수점 이하 버림, 콤마 추가, "백만" 단위 표시
+                              : 'N/A'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {coin.volume1m != null ?
+                              `${Math.floor(coin.volume1m / 1_000_000).toLocaleString()} 백만`
+                              : 'N/A'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {coin.volume15m != null ?
+                              `${Math.floor(coin.volume15m / 1_000_000).toLocaleString()} 백만`
+                              : 'N/A'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {coin.volume1h != null ?
+                              `${Math.floor(coin.volume1h / 1_000_000).toLocaleString()} 백만`
+                              : 'N/A'}
+                          </td>
                           <td className="py-2 px-3">N/A</td> {/* <--- 유지율 (Upbit API에서 직접 제공 안함) */}
-                          <td className="py-2 px-3">{coin.priceChange}</td> {/* <--- 전일대비 */}
+                          <td className="py-2 px-3">{coin.priceChange != null ?
+                            `${Math.floor(coin.priceChange * 10000) / 100}%`
+                            : 'N/A'}
+                          </td> {/* <--- 전일대비 */}
                           <td className="py-2 px-3">N/A</td> {/* <--- 시총 (Upbit API에서 직접 제공 안함) */}
                         </tr>
                       ))}
