@@ -11,7 +11,11 @@ import org.springframework.boot.SpringApplication; // 스프링 부트 애플리
 import org.springframework.boot.autoconfigure.SpringBootApplication; // 스프링 부트 애플리케이션의 핵심 어노테이션입니다.
 import org.springframework.context.annotation.Bean; // Spring 컨테이너에 Bean을 등록할 때 사용합니다.
 
+
+import org.springframework.scheduling.annotation.EnableScheduling; // <-- @EnableScheduling 임포트
+
 @SpringBootApplication // @SpringBootApplication: 이 어노테이션 하나로 스프링 부트 애플리케이션의 핵심 설정이 완료됩니다.
+@EnableScheduling // <-- 스케줄링 활성화 어노테이션 추가
 // @EnableAutoConfiguration, @ComponentScan, @Configuration 세 가지 어노테이션을 포함하고 있습니다.
 // - @EnableAutoConfiguration: 클래스패스에 있는 라이브러리들을 기반으로 애플리케이션 설정을 자동으로 구성합니다. (예: spring-boot-starter-web이 있으면 웹 서버 설정 자동 구성)
 // - @ComponentScan: 현재 패키지 및 하위 패키지에서 @Component, @Service, @Repository, @Controller 등의 어노테이션이 붙은 클래스들을 찾아 Spring Bean으로 등록합니다.
