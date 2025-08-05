@@ -32,25 +32,25 @@ public class MarketDataWSC {
     return marketDataService.getFilteredLiveMarketData(true, true, true, true);
   }
 
-  // MarketDataService에서 실시간 데이터를 받아와 클라이언트에 푸시하는 메서드
-  public void pushLiveMarketData(List<CoinResponseDto> coinData) {
-    // /topic/market-data 주소를 구독하는 모든 클라이언트에게 데이터를 푸시합니다.
-    messagingTemplate.convertAndSend("/topic/market-data", coinData);
-  }
-
-  /**
-   * 외부에서 알람 메시지를 프론트엔드로 푸시하도록 요청하는 PUBLIC 메서드
-   * 이 메서드를 MarketDataService에서 호출합니다.
-   */
-  public void pushAlarmMessage(String alarmMessage) {
-    messagingTemplate.convertAndSend("/topic/alarm-log", alarmMessage);
-  }
-
-  /**
-   * 외부에서 Top 5 코인 데이터를 프론트엔드로 푸시하도록 요청하는 PUBLIC 메서드
-   * 이 메서드를 MarketDataService에서 호출합니다.
-   */
-  public void pushTop5MarketData(List<CoinResponseDto> top5Coins) { // <--- 새로 추가할 메서드!
-    messagingTemplate.convertAndSend("/topic/top-5-market-data", top5Coins);
-  }
+//  // MarketDataService에서 실시간 데이터를 받아와 클라이언트에 푸시하는 메서드
+//  public void pushLiveMarketData(List<CoinResponseDto> coinData) {
+//    // /topic/market-data 주소를 구독하는 모든 클라이언트에게 데이터를 푸시합니다.
+//    messagingTemplate.convertAndSend("/topic/market-data", coinData);
+//  }
+//
+//  /**
+//   * 외부에서 알람 메시지를 프론트엔드로 푸시하도록 요청하는 PUBLIC 메서드
+//   * 이 메서드를 MarketDataService에서 호출합니다.
+//   */
+//  public void pushAlarmMessage(String alarmMessage) {
+//    messagingTemplate.convertAndSend("/topic/alarm-log", alarmMessage);
+//  }
+//
+//  /**
+//   * 외부에서 Top 5 코인 데이터를 프론트엔드로 푸시하도록 요청하는 PUBLIC 메서드
+//   * 이 메서드를 MarketDataService에서 호출합니다.
+//   */
+//  public void pushTop5MarketData(List<CoinResponseDto> top5Coins) { // <--- 새로 추가할 메서드!
+//    messagingTemplate.convertAndSend("/topic/top-5-market-data", top5Coins);
+//  }
 }

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling; // 스케줄링 활성화
 import org.springframework.scheduling.annotation.Scheduled; // 스케줄링 어노테이션
 import org.springframework.stereotype.Service;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.Instant; // Instant 임포트
 import java.util.ArrayList;
@@ -28,7 +29,8 @@ public class MarketDataService {
 
   private final UpbitClient upbitClient; // REST API 호출용
   private final UpbitWSC UpbitWSC; // WebSocket 호출용
-  private final MarketDataWSC webSocketController; // 클라이언트로 메시지 푸시용
+  //private final MarketDataWSC webSocketController; // 클라이언트로 메시지 푸시용
+  private final SimpMessagingTemplate messagingTemplate;
 
   // 실시간 데이터를 저장할 임시 저장소 (마켓 코드 -> 최신 UpbitTickerResponse)
   private ConcurrentMap<String, UpbitTickerResponse> latestTickers = new ConcurrentHashMap<>();
@@ -43,10 +45,12 @@ public class MarketDataService {
 
 
   @Autowired
-  public MarketDataService(UpbitClient upbitClient, UpbitWSC UpbitWSC, MarketDataWSC webSocketController) {
+//  public MarketDataService(UpbitClient upbitClient, UpbitWSC UpbitWSC, MarketDataWSC webSocketController) {
+  public MarketDataService(UpbitClient upbitClient, UpbitWSC UpbitWSC, SimpMessagingTemplate  messagingTemplate) {
     this.upbitClient = upbitClient;
     this.UpbitWSC = UpbitWSC;
-    this.webSocketController = webSocketController;
+//    this.webSocketController = webSocketController;
+    this.messagingTemplate = messagingTemplate; // <--- 주입받은 messagingTemplate 할당
   }
 
   /**
@@ -82,7 +86,8 @@ public class MarketDataService {
                   tradeAmount,
                   ticker.getTradeVolume(),
                   ticker.getTradePrice());
-          webSocketController.pushAlarmMessage(alarmMessage); // 프론트엔드로 알람 푸시
+          messagingTemplate.convertAndSend("/topic/alarm-log", alarmMessage); // <--- 직접 메시지 전송!
+//          webSocketController.pushAlarmMessage(alarmMessage); // 프론트엔드로 알람 푸시
           lastAlarmTime.put(ticker.getMarket(), now);
         }
       }
@@ -193,12 +198,14 @@ public class MarketDataService {
             .limit(5) // 상위 5개만 선택
             .collect(Collectors.toList());
 
-    // 전체 코인 데이터 (필터링 없이 모든 코인 전달)
-    webSocketController.pushLiveMarketData(allCoins);
-
-    // Top 5 코인 데이터는 별도의 토픽으로 푸시 가능 (선택 사항)
-    //webSocketController.messagingTemplate.convertAndSend("/topic/top-5-market-data", top5Coins);
-    webSocketController.pushTop5MarketData(top5Coins);
+    messagingTemplate.convertAndSend("/topic/market-data", allCoins); // <--- 직접 메시지 전송!
+    messagingTemplate.convertAndSend("/topic/top-5-market-data", top5Coins); // <--- 직접 메시지 전
+    //2025.8.4 삭제 주입을 서로 하고있으면 에러나는 문제 때문에
+//    // 전체 코인 데이터 (필터링 없이 모든 코인 전달)
+//    webSocketController.pushLiveMarketData(allCoins);
+//    // Top 5 코인 데이터는 별도의 토픽으로 푸시 가능 (선택 사항)
+//    //webSocketController.messagingTemplate.convertAndSend("/topic/top-5-market-data", top5Coins);
+//    webSocketController.pushTop5MarketData(top5Coins);
     // 이전 분 버퍼 정리 (1분마다 한번씩) - 더 정교한 로직 필요
     // minuteVolumeBuffers.forEach((market, buffer) -> buffer.keySet().removeIf(ts -> ts < currentMinuteTimestamp));
     // 스케줄링 시점과 1분 계산 시점이 완벽히 일치하지 않아 문제 발생 가능
