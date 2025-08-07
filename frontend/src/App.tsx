@@ -358,7 +358,7 @@ export default function App() {
               <p className="text-gray-500">조건에 맞는 알람이 없습니다.</p>
             ) : (
               alarmLogs.map((log, index) => (
-                <div key={index} className="text-red-600"> {/* 로그 자체가 문자열이므로 index를 key로 사용 */}
+                <div key={index} className="text-red-800 font-bold"> {/* 로그 자체가 문자열이므로 index를 key로 사용 */}
                   {log}
                 </div>
               ))

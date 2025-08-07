@@ -6,50 +6,42 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // <--- 이 임포트 추가
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-/**
- * Upbit API의 실시간 시세 (Ticker) 및 체결 (Trade) 응답을 매핑하기 위한 DTO.
- * WebSocket 메시지의 경우, 알 수 없는 필드를 무시하도록 설정합니다.
- */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true) // <--- 이 어노테이션 추가: 알 수 없는 필드는 무시하도록 설정
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UpbitTickerResponse {
 
-  @JsonProperty("ty") // 메시지 타입 (예: "ticker", "trade")
+  @JsonProperty("ty") // WebSocket Trade/Ticker 메시지의 "ty" 필드
   private String ty;
 
-  @JsonProperty("cd") // 마켓 코드 (예: KRW-BTC)
-  private String code; // <--- 이 필드 추가: WebSocket trade 메시지에서 "cd"로 마켓 코드 전달됨
+  @JsonProperty("cd") // WebSocket Trade/Ticker 메시지의 "cd" 필드 (마켓 코드)
+  private String code;
 
-  @JsonProperty("market") // Rest API 용 필드
+  @JsonProperty("market") // <-- REST API Ticker 응답용 (getMarket()을 위해 다시 살림!)
   private String market;
 
-  @JsonProperty("trade_price")
+  @JsonProperty("tp") // WebSocket Trade 메시지의 "tp" 필드 (체결 가격)
   private Double tradePrice;
 
-  @JsonProperty("trade_volume")
+  @JsonProperty("tv") // WebSocket Trade 메시지의 "tv" 필드 (체결량)
   private Double tradeVolume;
 
-  @JsonProperty("change_rate")
+  @JsonProperty("change_rate") // REST/WebSocket Ticker 메시지 (변동률)
   private Double changeRate;
 
-  @JsonProperty("acc_trade_price_24h")
+  @JsonProperty("acc_trade_price_24h") // REST API Ticker 응답용 (24H 누적 거래대금)
   private Double accTradePrice24h;
 
-  // 추가: 체결 시간 정보 (WebSocket Trade 메시지에서 자주 사용됨)
-  @JsonProperty("trade_timestamp")
+  @JsonProperty("trade_timestamp") // WebSocket Trade 메시지
   private Long tradeTimestamp;
 
-  @JsonProperty("seq") // 체결 일련번호
+  @JsonProperty("seq") // WebSocket Trade/Ticker 메시지
   private Long seq;
 
-  @JsonProperty("tp") // 가격 변화량
-  private String tp;
-
-  @JsonProperty("tms") // 체결 타임스탬프 (ms)
+  @JsonProperty("tms") // WebSocket Trade 메시지
   private Long tms;
 }
