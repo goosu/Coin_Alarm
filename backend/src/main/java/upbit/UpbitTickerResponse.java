@@ -1,36 +1,55 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/upbit/UpbitTickerResponse.java
-package coinalarm.Coin_Alarm.upbit; // <-- 정확한 패키지 경로
+package coinalarm.Coin_Alarm.upbit;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
-import com.fasterxml.jackson.annotation.JsonProperty; // JSON 필드명을 매핑하기 위해 필요
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // <--- 이 임포트 추가
 
-// Upbit API의 ticker(시세) 응답을 매핑할 DTO입니다.
-// 필요한 필드만 정의했습니다.
+/**
+ * Upbit API의 실시간 시세 (Ticker) 및 체결 (Trade) 응답을 매핑하기 위한 DTO.
+ * WebSocket 메시지의 경우, 알 수 없는 필드를 무시하도록 설정합니다.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true) // <--- 이 어노테이션 추가: 알 수 없는 필드는 무시하도록 설정
 public class UpbitTickerResponse {
 
-  @JsonProperty("market") // JSON의 'market' 필드를 자바의 'market'에 매핑
-  private String market; // 마켓 코드 (예: KRW-BTC)
+  @JsonProperty("ty") // 메시지 타입 (예: "ticker", "trade")
+  private String ty;
 
-  @JsonProperty("trade_price") // JSON의 'trade_price' 필드를 'tradePrice'에 매핑
-  private Double tradePrice; // 현재가
+  @JsonProperty("cd") // 마켓 코드 (예: KRW-BTC)
+  private String code; // <--- 이 필드 추가: WebSocket trade 메시지에서 "cd"로 마켓 코드 전달됨
 
-  @JsonProperty("trade_volume") // <--- 이 필드가 정확히 있어야 합니다!
+  @JsonProperty("market") // Rest API 용 필드
+  private String market;
+
+  @JsonProperty("trade_price")
+  private Double tradePrice;
+
+  @JsonProperty("trade_volume")
   private Double tradeVolume;
-//  @JsonProperty("trade_volume") // JSON의 'trade_volume' 필드를 'tradeVolume'에 매핑
-//  private Double tradeVolume; // 최근 24시간 거래량
-  @JsonProperty("acc_trade_price_24h") // JSON의 'acc_trade_price_24h' 필드를 'accTradePrice24h'에 매핑
-  private Double accTradePrice24h; // 24시간 누적 거래 가격
 
-  @JsonProperty("change_rate") // JSON의 'change_rate' 필드를 'changeRate'에 매핑
-  private Double changeRate; // 24시간 대비 변화율 (0.005 = 0.5%)
+  @JsonProperty("change_rate")
+  private Double changeRate;
 
-  // 필요한 경우 다른 필드를 추가할 수 있습니다. (예: `high_price`, `low_price` 등)
-  // Upbit API 문서: https://docs.upbit.com/reference/시세-조회
+  @JsonProperty("acc_trade_price_24h")
+  private Double accTradePrice24h;
+
+  // 추가: 체결 시간 정보 (WebSocket Trade 메시지에서 자주 사용됨)
+  @JsonProperty("trade_timestamp")
+  private Long tradeTimestamp;
+
+  @JsonProperty("seq") // 체결 일련번호
+  private Long seq;
+
+  @JsonProperty("tp") // 가격 변화량
+  private String tp;
+
+  @JsonProperty("tms") // 체결 타임스탬프 (ms)
+  private Long tms;
 }

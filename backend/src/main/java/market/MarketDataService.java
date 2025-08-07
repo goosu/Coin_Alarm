@@ -129,9 +129,13 @@ public class MarketDataService {
     List<UpbitTickerResponse> distinctFilteredTickers = filteredTickers.stream().distinct().collect(Collectors.toList());
 
     return distinctFilteredTickers.stream().map(ticker -> {
-      String[] marketParts = ticker.getMarket().split("-");
+//      String[] marketParts = ticker.getMarket().split("-");
+//      String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
+      // --- 수정할 부분: symbol 추출 로직 (ticker.code를 우선적으로 사용) ---
+      String marketCode = ticker.getCode() != null ? ticker.getCode() : ticker.getMarket();
+      String[] marketParts = marketCode.split("-");
       String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
-
+      // --- 수정 끝 ---
       // 최신 캔들 거래대금 가져오기 (latestTickers 맵에서 최신 정보 참조)
       // 여기서는 웹소켓으로 누적된 1분 거래대금을 사용 (Scheduled 메서드에서 맵을 비워주므로 정확한 1분 데이터가 아닐 수 있음)
       double volume1m = minuteVolumeBuffers.getOrDefault(ticker.getMarket(), new ConcurrentHashMap<>())
@@ -141,7 +145,7 @@ public class MarketDataService {
 
       return new CoinResponseDto(
               null, // id
-              ticker.getMarket(), // name
+              marketCode,//ticker.getMarket(), // name
               symbol, // symbol
               ticker.getTradePrice(), // currentPrice
               String.format("%.2f%%", ticker.getChangeRate() * 100), // priceChange
@@ -167,8 +171,13 @@ public class MarketDataService {
 
     List<CoinResponseDto> allCoins = latestTickers.values().stream()
             .map(ticker -> {
-              String[] marketParts = ticker.getMarket().split("-");
+//              String[] marketParts = ticker.getMarket().split("-");
+//              String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
+              // --- 수정할 부분: symbol 추출 로직 (ticker.code를 우선적으로 사용) ---
+              String marketCode = ticker.getCode() != null ? ticker.getCode() : ticker.getMarket();
+              String[] marketParts = marketCode.split("-");
               String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
+              // --- 수정 끝 ---
 
               // 최신 캔들 거래대금 (WebSocket에서 누적된 현재 분의 값)
               double volume1m = minuteVolumeBuffers.getOrDefault(ticker.getMarket(), new ConcurrentHashMap<>())
@@ -179,7 +188,7 @@ public class MarketDataService {
 
               return new CoinResponseDto(
                       null,
-                      ticker.getMarket(),
+                      marketCode,//ticker.getMarket(),
                       symbol,
                       ticker.getTradePrice(),
                       String.format("%.2f%%", ticker.getChangeRate() * 100),

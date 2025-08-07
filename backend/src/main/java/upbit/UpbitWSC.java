@@ -43,7 +43,7 @@ public class UpbitWSC {
 
   // 외부에서 메시지 수신 시 호출될 콜백 설정
   public void setOnTradeMessageReceived(Consumer<UpbitTickerResponse> consumer) {
-    this.onTradeMessageReceived = consumer;
+     this.onTradeMessageReceived = consumer;
   }
 
   /**
