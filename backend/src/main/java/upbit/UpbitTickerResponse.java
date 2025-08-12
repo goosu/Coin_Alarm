@@ -18,22 +18,22 @@ public class UpbitTickerResponse {
   private String ty;
 
   @JsonProperty("cd")
-  private String code; // WebSocket 'cd' 또는 일부 응답에서 사용
+  private String code;
 
   @JsonProperty("market")
-  private String market; // REST API 'market' 필드
+  private String market;
 
   @JsonProperty("tp")
-  private Double tradePrice; // WebSocket 'tp'
+  private Double tradePrice;
 
   @JsonProperty("trade_price")
-  private Double tradePriceRest; // REST 'trade_price'
+  private Double tradePriceRest;
 
   @JsonProperty("tv")
-  private Double tradeVolume; // WebSocket 'tv'
+  private Double tradeVolume;
 
   @JsonProperty("trade_volume")
-  private Double tradeVolumeRest; // REST 'trade_volume'
+  private Double tradeVolumeRest;
 
   @JsonProperty("change_rate")
   private Double changeRate;
@@ -42,12 +42,12 @@ public class UpbitTickerResponse {
   private Double accTradePrice24h;
 
   @JsonProperty("ab")
-  private String askBid; // "ASK" or "BID"
+  private String askBid;
 
   @JsonProperty("tms")
   private Long tms;
 
-  // normalized getters for safety
+  // 안전화된 getter들
   public Double getTradePriceNormalized() {
     return tradePrice != null ? tradePrice : tradePriceRest;
   }
@@ -62,7 +62,5 @@ public class UpbitTickerResponse {
     return null;
   }
 
-  public String getAskBid() {
-    return askBid;
-  }
+  public String getAskBid() { return askBid; }
 }

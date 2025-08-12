@@ -52,7 +52,6 @@ public class UpbitClient {
 
   public List<UpbitTickerResponse> getTicker(List<String> marketCodes) {
     if (marketCodes == null || marketCodes.isEmpty()) return Collections.emptyList();
-
     String marketsParam = String.join(",", marketCodes);
     URI uri = UriComponentsBuilder.fromUriString(UPBIT_API_BASE_URL)
             .path("/ticker")

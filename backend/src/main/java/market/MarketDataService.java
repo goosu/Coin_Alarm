@@ -262,4 +262,6 @@ public class MarketDataService {
     messagingTemplate.convertAndSend("/topic/market-data", all);
     messagingTemplate.convertAndSend("/topic/buy-sell-ratio", buySellRatios);
   }
+
+
 }

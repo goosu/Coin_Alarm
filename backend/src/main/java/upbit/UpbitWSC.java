@@ -23,7 +23,6 @@ public class UpbitWSC {
   private final ObjectMapper objectMapper;
   private Consumer<UpbitTickerResponse> onTradeMessageReceived;
 
-  @SuppressWarnings("unused")
   public UpbitWSC() {
     this.client = new OkHttpClient();
     this.objectMapper = new ObjectMapper();

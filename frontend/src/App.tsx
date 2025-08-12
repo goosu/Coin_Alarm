@@ -221,35 +221,7 @@ export default function App() {
       </div>
 
       {/* --- 상단 고정 코인 섹션 --- */}
-      <div className="bg-white p-4 rounded-lg shadow-md m-4">
-        <h2 className="text-xl font-semibold mb-3">상단 고정 (1분 거래대금 Top 5)</h2>
-        {top5Coins.length === 0 ? (
-          <p className="text-gray-500">상단 고정 코인이 없습니다.</p>
-        ) : (
-          <table className="min-w-full table-auto text-left text-sm">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="py-2 px-3 border-b">Symbol</th>
-                <th className="py-2 px-3 border-b">현재가</th>
-                <th className="py-2 px-3 border-b">1분봉 거래대금</th>
-              </tr>
-            </thead>
-            <tbody>
-              {top5Coins.map((coin) => (
-                <tr key={coin.name || coin.id} className="border-b hover:bg-gray-100">
-                  <td className="py-2 px-3">{coin.symbol}</td>
-                  <td className="py-2 px-3">{coin.currentPrice != null ? coin.currentPrice.toLocaleString() : 'N/A'}</td>
-                  <td className="py-2 px-3">
-                    {coin.volume1m != null ?
-                      `${Math.floor(coin.volume1m / 1_000_000).toLocaleString()} 백만`
-                      : 'N/A'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+
 
       {/* 중앙 메인 영역 (코인목록)과 알람 전용 섹션 (알람 로그) */}
       <div className="flex flex-1 p-4 space-x-4">

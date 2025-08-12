@@ -41,55 +41,37 @@ public class CoinResponseDto {
 
   public static CoinResponseDto fromEntity(coinalarm.Coin_Alarm.coin.Coin coin) {
     if (coin == null) return null;
-    Long id = null;
-    String name = null;
-    String symbol = "";
-    Double currentPrice = null;
-    String priceChange = null;
-    Double acc24 = null;
 
+    Long id = null;
     try { id = (Long) coin.getClass().getMethod("getId").invoke(coin); } catch (Exception ignored) {}
+
+    String name = null;
     try { name = (String) coin.getClass().getMethod("getName").invoke(coin); } catch (Exception ignored) {}
-    if (name != null && !name.isEmpty()) {
+
+    String symbol = "";
+    if (name != null && name.contains("-")) {
       String[] parts = name.split("-");
       symbol = parts.length > 1 ? parts[1] : parts[0];
-    }
-    // 안전하게 가능한 여러 getter 후보를 순서대로 시도
-    String[] priceGetters = {"getCurrentPrice", "getPrice", "getLastPrice", "getTradePrice"};
-    for (String g : priceGetters) {
-      try {
-        Object val = coin.getClass().getMethod(g).invoke(coin);
-        if (val instanceof Number) { currentPrice = ((Number) val).doubleValue(); break; }
-        if (val instanceof Double) { currentPrice = (Double) val; break; }
-      } catch (Exception ignored) {}
+    } else {
+      try { Object s = coin.getClass().getMethod("getSymbol").invoke(coin); if (s != null) symbol = s.toString(); } catch (Exception ignored) {}
     }
 
-    String[] changeGetters = {"getPriceChange", "getChangeRate"};
-    for (String g : changeGetters) {
-      try { Object v = coin.getClass().getMethod(g).invoke(coin); if (v != null) priceChange = v.toString(); break; } catch (Exception ignored) {}
+    Double currentPrice = null;
+    try {
+      Object p = coin.getClass().getMethod("getCurrentPrice").invoke(coin);
+      if (p instanceof Number) currentPrice = ((Number) p).doubleValue();
+    } catch (Exception ignored) {
+      // 안전하게 무시 — currentPrice는 null로 둠
     }
 
-    String[] acc24Getters = {"getAccTradePrice24h", "getAccTrade","getVolume24h"};
-    for (String g : acc24Getters) {
-      try {
-        Object val = coin.getClass().getMethod(g).invoke(coin);
-        if (val instanceof Number) { acc24 = ((Number) val).doubleValue(); break; }
-      } catch (Exception ignored) {}
-    }
+    String priceChange = null;
+    try { Object pc = coin.getClass().getMethod("getPriceChange").invoke(coin); if (pc != null) priceChange = pc.toString(); } catch (Exception ignored) {}
 
-    return new CoinResponseDto(
-            id,
-            name,
-            symbol,
-            currentPrice,
-            priceChange,
-            acc24,
-            0.0, // volume1m 초기 (캐시로 채우기)
-            0.0, // volume5m
-            0.0, // volume15m
-            0.0, // volume1h
-            java.util.Collections.emptyList()
-    );
+    Double acc24 = null;
+    try { Object a = coin.getClass().getMethod("getAccTradePrice24h").invoke(coin); if (a instanceof Number) acc24 = ((Number)a).doubleValue(); } catch (Exception ignored) {}
+
+    return new CoinResponseDto(id, name, symbol, currentPrice, priceChange, acc24,
+            0.0, 0.0, 0.0, 0.0, java.util.Collections.emptyList());
   }
 
   // getters and setters...

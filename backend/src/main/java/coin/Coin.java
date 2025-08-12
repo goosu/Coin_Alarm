@@ -46,3 +46,4 @@ public class Coin {
   }
   // --- 추가된 생성자 끝 ---
 }
+

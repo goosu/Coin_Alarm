@@ -39,8 +39,8 @@ public class UpbitCandleResponse {
   private Long timestamp;
 
   @JsonProperty("candle_acc_trade_price")
-  private Double candleAccTradePrice; // 누적 거래대금 (원화)
+  private Double candleAccTradePrice;
 
   @JsonProperty("candle_acc_trade_volume")
-  private Double candleAccTradeVolume; // 누적 거래량 (코인 단위)
+  private Double candleAccTradeVolume;
 }
