@@ -1,4 +1,3 @@
-// backend/src/main/java/coinalarm/Coin_Alarm/market/MarketDataService.java (전체 덮어씌우기)
 package coinalarm.Coin_Alarm.market;
 
 import coinalarm.Coin_Alarm.coin.CoinResponseDto;
@@ -6,21 +5,28 @@ import coinalarm.Coin_Alarm.upbit.UpbitClient;
 import coinalarm.Coin_Alarm.upbit.UpbitTickerResponse;
 import coinalarm.Coin_Alarm.upbit.UpbitWSC;
 import coinalarm.Coin_Alarm.upbit.UpbitCandleResponse;
+
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+/**
+ * MarketDataService
+ * - WebSocket으로 실시간 시세(Trade)를 수신하여 latestTickers 업데이트
+ * - 라운드로빈 방식으로 캔들(1m,5m,15m,1h)을 REST API로 가져와 캐싱
+ * - 즐겨찾기(favorites) 관리 API용 메서드 제공
+ * - pushLatestMarketDataToClients()가 정렬/필터링 후 /topic/market-data 로 푸시
+ */
 @Service
 @EnableScheduling
 public class MarketDataService {
@@ -29,30 +35,32 @@ public class MarketDataService {
   private final UpbitWSC upbitWSC;
   private final SimpMessagingTemplate messagingTemplate;
 
-  // 실시간 티커 (시세) 데이터를 저장 (WebSocket으로부터 계속 업데이트)
-  private ConcurrentMap<String, UpbitTickerResponse> latestTickers = new ConcurrentHashMap<>();
+  // 실시간 티커(시세)
+  private final ConcurrentMap<String, UpbitTickerResponse> latestTickers = new ConcurrentHashMap<>();
 
-  // 각 분봉/시간봉 캔들의 누적 거래대금을 저장할 맵 (주기적 API 호출로 업데이트)
-  private ConcurrentMap<String, Double> latest1MinuteVolume = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Double> latest15MinuteVolume = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Double> latest1HourVolume = new ConcurrentHashMap<>();
+  // 캔들 캐시: 1분, 5분, 15분, 1시간 누적 거래대금
+  private final ConcurrentMap<String, Double> latest1MinuteVolume = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, Double> latest5MinuteVolume = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, Double> latest15MinuteVolume = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, Double> latest1HourVolume = new ConcurrentHashMap<>();
 
-  // 알람 발생 로깅용 (중복 알람 방지)
-  private ConcurrentMap<String, Instant> lastAlarmTime = new ConcurrentHashMap<>();
-  private final long ALARM_COOLDOWN_SECONDS = 3;
+  // 슬라이딩 윈도우(매수/매도 비율) 용 실시간 체결 저장
+  private final ConcurrentMap<String, List<Map<String, Object>>> tradeWindows = new ConcurrentHashMap<>();
+  private final long WINDOW_SIZE_SECONDS = 10L; // 슬라이딩 윈도우 길이(초)
 
-  // 즐겨찾기 마켓 코드 목록 (동적 관리) - Redis/DB로 확장 가능
-  // Set을 사용하여 중복을 방지하고 빠른 검색을 가능하게 합니다.
-  private Set<String> favoriteMarkets = ConcurrentHashMap.newKeySet(); // Thread-safe Set
+  // 알람 쿨타임 관리
+  private final ConcurrentMap<String, Instant> lastAlarmTime = new ConcurrentHashMap<>();
+  private final long ALARM_COOLDOWN_SECONDS = 3L;
 
-  // 슬라이딩 윈도우를 위한 실시간 매수/매도 체결 데이터 저장소
-  // Map<MarketCode, List<TradeEvent>> -> TradeEvent { timestamp, amount, type(ASK/BID) }
-  // 여기서는 간단히 { "timestamp": ..., "amount": ..., "type": "ASK/BID" } 맵을 List에 저장
-  private ConcurrentMap<String, List<Map<String, Object>>> tradeWindows = new ConcurrentHashMap<>();
-  private final long WINDOW_SIZE_SECONDS = 10; // 슬라이딩 윈도우 크기 (10초)
+  // 즐겨찾기 (메모리 기반)
+  private final Set<String> favoriteMarkets = ConcurrentHashMap.newKeySet();
 
-  // 동적 필터링 기준 (임시 설정)
-  private final long MIN_TRADE_VOLUME_24H_THRESHOLD = 50_000_000_000L; // 500억 (롱터우님의 소형 기준)
+  // 캔들 라운드로빈 인덱스 및 마켓 리스트(초기화 시 getAllKrwMarketCodes 로 채움)
+  private int candleFetchIndex = 0;
+  private volatile List<String> allMarketCodesCache = new ArrayList<>();
+
+  // 5분 기준 필터 임계값 (예시값, 필요시 조정)
+  private final double MIN_5MIN_VOLUME_THRESHOLD = 50_000_000.0; // 예: 5천만 원
 
   @Autowired
   public MarketDataService(UpbitClient upbitClient, UpbitWSC upbitWSC, SimpMessagingTemplate messagingTemplate) {
@@ -61,265 +69,197 @@ public class MarketDataService {
     this.messagingTemplate = messagingTemplate;
   }
 
-  /**
-   * 애플리케이션 시작 시 Upbit WebSocket 연결 및 초기 데이터/알람 로직 설정
-   */
   @PostConstruct
   public void init() {
-    List<String> allKrwMarkets = upbitClient.getAllKrwMarketCodes(); // REST API로 모든 마켓 코드 가져옴
-    upbitWSC.connect(allKrwMarkets); // WebSocket 연결 및 모든 마켓 구독 (Trade 메시지)
+    // 캐시용 마켓 코드 초기화 (REST에서 한 번)
+    try {
+      List<String> allCodes = upbitClient.getAllKrwMarketCodes();
+      if (allCodes != null && !allCodes.isEmpty()) {
+        allMarketCodesCache = new ArrayList<>(allCodes);
+      }
+    } catch (Exception ignored) {
+    }
 
-    // 초기 즐겨찾기 설정 (테스트용)
-    favoriteMarkets.add("KRW-BTC");
-    favoriteMarkets.add("KRW-ETH");
-    favoriteMarkets.add("KRW-XRP");
-    favoriteMarkets.add("KRW-DOGE");
-    favoriteMarkets.add("KRW-SOL");
-
+    // WebSocket 연결 및 콜백 등록 (실시간 체결 수신)
+    upbitWSC.connect(allMarketCodesCache);
     upbitWSC.setOnTradeMessageReceived(ticker -> {
-      String marketKey = ticker.getCode();
-      if (marketKey == null) { return; }
-      latestTickers.put(marketKey, ticker); // 최신 티커 업데이트
+      // normalize market key
+      String marketKey = ticker.getMarketCode(); // DTO의 normalized getter
+      if (marketKey == null) return;
 
-      // 대량 체결 알람 로직
-      double tradeAmount = ticker.getTradePrice() != null && ticker.getTradeVolume() != null ?
-              ticker.getTradePrice() * ticker.getTradeVolume() : 0.0;
-      if (tradeAmount >= 100_000_000) { // 1억 이상 체결 시
+      latestTickers.put(marketKey, ticker);
+
+      // 실시간 체결로 알람 판단 (예: 단일 체결 금액이 1억 이상)
+      double price = ticker.getTradePriceNormalized() != null ? ticker.getTradePriceNormalized() : 0.0;
+      double vol = ticker.getTradeVolumeNormalized() != null ? ticker.getTradeVolumeNormalized() : 0.0;
+      double tradeAmount = price * vol;
+
+      if (tradeAmount >= 100_000_000.0) {
         Instant now = Instant.now();
-        Instant lastFired = lastAlarmTime.get(marketKey);
-        if (lastFired == null || lastFired.plusSeconds(ALARM_COOLDOWN_SECONDS).isBefore(now)) {
-          String alarmMessage = String.format("[%s] %s: %.0f원 대량 체결 포착! (%.0f개 @ %.0f원)",
-                  Instant.now().atZone(ZoneId.of("Asia/Seoul")).toLocalTime().withNano(0).toString(),
-                  marketKey, tradeAmount, ticker.getTradeVolume(), ticker.getTradePrice());
-          messagingTemplate.convertAndSend("/topic/alarm-log", alarmMessage);
+        Instant last = lastAlarmTime.get(marketKey);
+        if (last == null || last.plusSeconds(ALARM_COOLDOWN_SECONDS).isBefore(now)) {
+          String msg = String.format("[%s] %s: %.0f원 대량 체결! (%.4f @ %.0f원)",
+                  Instant.now().atZone(ZoneId.of("Asia/Seoul")).toLocalTime().withNano(0),
+                  marketKey, tradeAmount, vol, price);
+          messagingTemplate.convertAndSend("/topic/alarm-log", msg);
           lastAlarmTime.put(marketKey, now);
         }
       }
 
-      // 슬라이딩 윈도우 데이터 추가 및 정리 (매수/매도세 분석용)
-      // TradeEvent { timestamp, amount, type(ASK/BID) }
-      Map<String, Object> tradeEvent = new HashMap<>();
-      tradeEvent.put("timestamp", System.currentTimeMillis()); // 현재 시간 (밀리초)
-      tradeEvent.put("amount", tradeAmount);
-      tradeEvent.put("type", ticker.getAskBid()); // "ASK" or "BID"
+      // 슬라이딩 윈도우에 trade event 저장 (매수/매도 구분 포함)
+      Map<String, Object> event = new HashMap<>();
+      event.put("timestamp", System.currentTimeMillis());
+      event.put("amount", tradeAmount);
+      event.put("type", ticker.getAskBid() != null ? ticker.getAskBid() : "UNKNOWN"); // "ASK" or "BID"
+      tradeWindows.computeIfAbsent(marketKey, k -> Collections.synchronizedList(new LinkedList<>())).add(event);
 
-      tradeWindows.computeIfAbsent(marketKey, k -> Collections.synchronizedList(new LinkedList<>()))
-              .add(tradeEvent);
-
-      // 윈도우 사이즈 밖의 오래된 데이터 제거
-      long cutoffTime = System.currentTimeMillis() - (WINDOW_SIZE_SECONDS * 1000);
-      tradeWindows.get(marketKey).removeIf(event -> ((Long) event.get("timestamp")) < cutoffTime);
+      // 윈도우 오래된 항목 제거
+      long cutoff = System.currentTimeMillis() - WINDOW_SIZE_SECONDS * 1000;
+      List<Map<String, Object>> list = tradeWindows.get(marketKey);
+      if (list != null) {
+        list.removeIf(e -> ((Long) e.get("timestamp")) < cutoff);
+      }
     });
-
-    fetchAndCacheAllCandles(); // 앱 시작 시 모든 코인의 캔들 데이터 초기화
   }
 
-  // =========================================================
-  // 즐겨찾기 관리 API (프론트엔드에서 호출될 수 있도록 추가)
-  // =========================================================
-  public boolean addFavoriteMarket(String marketCode) {
-    return favoriteMarkets.add(marketCode);
-  }
+  // 즐겨찾기 관리
+  public boolean addFavoriteMarket(String marketCode) { return favoriteMarkets.add(marketCode); }
+  public boolean removeFavoriteMarket(String marketCode) { return favoriteMarkets.remove(marketCode); }
+  public Set<String> getFavoriteMarkets() { return Collections.unmodifiableSet(favoriteMarkets); }
 
-  public boolean removeFavoriteMarket(String marketCode) {
-    return favoriteMarkets.remove(marketCode);
-  }
+  // 라운드로빈 방식 캔들 수집: 1초에 약 5회 호출(시스템 상황에 맞게 fixedRate 조절)
+  // 주의: Upbit rate limit을 반드시 고려하세요. 필요시 fixedRate를 늘리세요.
+  @Scheduled(fixedRate = 200) // 200ms 마다 한 마켓 처리(설정에 따라 변경)
+  public void fetchCandleRoundRobin() {
+    List<String> codes = allMarketCodesCache;
+    if (codes == null || codes.isEmpty()) return;
 
-  public Set<String> getFavoriteMarkets() {
-    return Collections.unmodifiableSet(favoriteMarkets); // 외부에서 수정 불가능하게 반환
-  }
-
-  // =========================================================
-  // 캔들 데이터 주기적 업데이트 (모든 코인 대상으로)
-  // Upbit API Rate Limit을 고려하여 API 호출 간격과 오류 처리 로직을 더 견고하게 구현해야 합니다.
-  // 현재는 모든 코인에 대해 매분마다 캔들 정보를 요청합니다. (Rate Limit 초과 가능성 있음)
-  // Rate Limit이 초과된다면 API 호출 주기를 더 길게(예: 5분마다) 변경하거나,
-  // 특정 코인(즐겨찾기)만 자주 가져오고 나머지는 덜 자주 가져오는 전략 필요
-  // =========================================================
-  private int candleFetchIndex = 0;
-  private List<String> allActiveMarketCodes = new ArrayList<>(); // 현재 웹소켓으로 데이터가 수신되는 모든 마켓 코드
-
-  @Scheduled(fixedRate = 200) // 0.2초마다 1개의 마켓 캔들을 가져오면, 100개 마켓의 캔들을 20초마다 갱신 가능. (매 초 5회 호출)
-  public void fetchAndCacheAllCandlesByRoundRobin() {
-    if (latestTickers.isEmpty()) { // 웹소켓으로 시세 데이터가 들어오기 시작하면
-      allActiveMarketCodes = new ArrayList<>(latestTickers.keySet()); // 현재 활성 마켓 코드를 업데이트
-    }
-    if (allActiveMarketCodes.isEmpty()) {
-      return;
-    }
-
-    String marketCode = allActiveMarketCodes.get(candleFetchIndex);
-    candleFetchIndex = (candleFetchIndex + 1) % allActiveMarketCodes.size(); // 다음 마켓 인덱스로
+    String market = codes.get(candleFetchIndex % codes.size());
+    candleFetchIndex = (candleFetchIndex + 1) % codes.size();
 
     try {
-      // 1분봉 캔들 가져오기
-      List<UpbitCandleResponse> candles1m = upbitClient.getMinuteCandles(1, marketCode, 1);
-      if (!candles1m.isEmpty()) { latest1MinuteVolume.put(marketCode, candles1m.get(0).getCandleAccTradePrice()); }
+      // 1분, 5분, 15분, 60분 캔들(최신 1개) 가져와 캐시
+      List<UpbitCandleResponse> c1 = upbitClient.getMinuteCandles(1, market, 1);
+      if (!c1.isEmpty()) latest1MinuteVolume.put(market, c1.get(0).getCandleAccTradePrice());
 
-      // 15분봉 캔들 가져오기
-      List<UpbitCandleResponse> candles15m = upbitClient.getMinuteCandles(15, marketCode, 1);
-      if (!candles15m.isEmpty()) { latest15MinuteVolume.put(marketCode, candles15m.get(0).getCandleAccTradePrice()); }
+      List<UpbitCandleResponse> c5 = upbitClient.getMinuteCandles(5, market, 1);
+      if (!c5.isEmpty()) latest5MinuteVolume.put(market, c5.get(0).getCandleAccTradePrice());
 
-      // 1시간봉 캔들 가져오기
-      List<UpbitCandleResponse> candles1h = upbitClient.getMinuteCandles(60, marketCode, 1);
-      if (!candles1h.isEmpty()) { latest1HourVolume.put(marketCode, candles1h.get(0).getCandleAccTradePrice()); }
+      List<UpbitCandleResponse> c15 = upbitClient.getMinuteCandles(15, market, 1);
+      if (!c15.isEmpty()) latest15MinuteVolume.put(market, c15.get(0).getCandleAccTradePrice());
 
+      List<UpbitCandleResponse> c60 = upbitClient.getMinuteCandles(60, market, 1);
+      if (!c60.isEmpty()) latest1HourVolume.put(market, c60.get(0).getCandleAccTradePrice());
     } catch (Exception e) {
-      // Rate Limit 초과, 네트워크 문제 등 - 경고 로그만 남김
-      // log.warn("Error fetching candle for {}: {}", marketCode, e.getMessage());
+      // Rate limit 또는 네트워크 이슈: 무시하거나 로깅
+      //logger.warn("candle fetch failed for {}: {}", market, e.getMessage());
     }
   }
 
-
-  /**
-   * REST API 엔드포인트용 서비스 메서드 (초기 데이터 제공)
-   */
+  // 초기 데이터(REST 기반) 로딩용
   public List<CoinResponseDto> getFilteredLiveMarketData(boolean all, boolean large, boolean mid, boolean small) {
-    // 이 메서드는 Initial Load시 사용.
-    // allActiveMarketCodes는 웹소켓이 시작된 후 latestTickers로 채워지므로, 앱 시작 초기에는 비어있을 수 있습니다.
-    // 따라서 앱 시작 시에는 UpbitClient.getAllKrwMarketCodes()로 모든 마켓을 가져오는 기존 로직을 사용합니다.
-    List<String> currentMarketCodes = upbitClient.getAllKrwMarketCodes();
-    List<UpbitTickerResponse> tickers = upbitClient.getTicker(currentMarketCodes); // REST API로 현재 시세 가져옴
+    List<String> allCodes = upbitClient.getAllKrwMarketCodes();
+    List<UpbitTickerResponse> tickers = upbitClient.getTicker(allCodes);
 
-    List<UpbitTickerResponse> filteredTickers = new ArrayList<>();
-    if (all) { filteredTickers.addAll(tickers); } else {
-      if (large) { tickers.stream().filter(t -> "KRW-BTC".equals(t.getCode() != null ? t.getCode() : t.getMarket()) || "KRW-ETH".equals(t.getCode() != null ? t.getCode() : t.getMarket())).forEach(filteredTickers::add); }
-      if (mid) { tickers.stream().filter(t -> "KRW-XRP".equals(t.getCode() != null ? t.getCode() : t.getMarket()) || "KRW-ADA".equals(t.getCode() != null ? t.getCode() : t.getMarket()) || "KRW-SOL".equals(t.getCode() != null ? t.getCode() : t.getMarket())).forEach(filteredTickers::add); }
-      if (small) { tickers.stream().filter(t -> "KRW-DOGE".equals(t.getCode() != null ? t.getCode() : t.getMarket()) || "KRW-DOT".equals(t.getCode() != null ? t.getCode() : t.getMarket()) || "KRW-AVAX".equals(t.getCode() != null ? t.getCode() : t.getMarket())).forEach(filteredTickers::add); }
+    List<UpbitTickerResponse> filtered = new ArrayList<>();
+    if (all) filtered.addAll(tickers);
+    else {
+      if (large) filtered.addAll(tickers.stream()
+              .filter(t -> {
+                String code = t.getMarketCode();
+                return "KRW-BTC".equals(code) || "KRW-ETH".equals(code);
+              }).collect(Collectors.toList()));
+      if (mid) filtered.addAll(tickers.stream()
+              .filter(t -> {
+                String code = t.getMarketCode();
+                return "KRW-XRP".equals(code) || "KRW-ADA".equals(code) || "KRW-SOL".equals(code);
+              }).collect(Collectors.toList()));
+      if (small) filtered.addAll(tickers.stream()
+              .filter(t -> {
+                String code = t.getMarketCode();
+                return "KRW-DOGE".equals(code) || "KRW-DOT".equals(code) || "KRW-AVAX".equals(code);
+              }).collect(Collectors.toList()));
     }
-    List<UpbitTickerResponse> distinctFilteredTickers = filteredTickers.stream().distinct().collect(Collectors.toList());
 
-    return distinctFilteredTickers.stream().map(ticker -> {
-      String marketCode = ticker.getCode() != null ? ticker.getCode() : ticker.getMarket();
-      if (marketCode == null || marketCode.isEmpty()) { marketCode = "UNKNOWN-UNKNOWN"; }
-      String[] marketParts = marketCode.split("-");
-      String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
+    List<UpbitTickerResponse> distinct = filtered.stream().distinct().collect(Collectors.toList());
+    return distinct.stream().map(t -> {
+      String marketCode = t.getMarketCode();
+      if (marketCode == null) marketCode = "UNKNOWN-UNKNOWN";
+      String[] parts = marketCode.split("-");
+      String symbol = parts.length > 1 ? parts[1] : parts[0];
 
-      // 캔들 값은 캐시된 맵에서 가져옵니다.
-      double volume1m = latest1MinuteVolume.getOrDefault(marketCode, 0.0);
-      double volume15m = latest15MinuteVolume.getOrDefault(marketCode, 0.0);
-      double volume1h = latest1HourVolume.getOrDefault(marketCode, 0.0);
+      double v1 = latest1MinuteVolume.getOrDefault(marketCode, 0.0);
+      double v5 = latest5MinuteVolume.getOrDefault(marketCode, 0.0);
+      double v15 = latest15MinuteVolume.getOrDefault(marketCode, 0.0);
+      double v1h = latest1HourVolume.getOrDefault(marketCode, 0.0);
 
-      Double changeRate = ticker.getChangeRate();
-      Double accTradePrice24h = ticker.getAccTradePrice24h();
-
-      return new CoinResponseDto(
-              null, marketCode, symbol, ticker.getTradePrice(),
-              String.format("%.2f%%", changeRate != null ? changeRate * 100 : 0.0),
-              accTradePrice24h,
-              volume1m, volume15m, volume1h, List.of()
-      );
+      return new CoinResponseDto(null, marketCode, symbol,
+              t.getTradePriceNormalized(), String.format("%.2f%%", t.getChangeRate() != null ? t.getChangeRate() * 100 : 0.0),
+              t.getAccTradePrice24h(), v1, v5, v15, v1h, List.of());
     }).collect(Collectors.toList());
   }
 
-
-  /**
-   * 주기적으로 최신 코인 데이터를 프론트엔드로 푸시합니다.
-   * 이 메서드는 latestTickers (WebSocket을 통해 수신된 실시간 시세)와 캐시된 캔들 데이터를 기반으로 작동합니다.
-   */
-  @Scheduled(fixedRate = 1000) // 1초마다 실행
+  // 주기적 푸시 (1초마다): 즐겨찾기 우선, 그 외는 필터링(예: 5분봉 기준)
+  @Scheduled(fixedRate = 1000)
   public void pushLatestMarketDataToClients() {
-    if (latestTickers.isEmpty()) { return; }
+    if (latestTickers.isEmpty()) return;
 
-    // 매수/매도세 비율 계산
+    // 매수/매도 비율 계산
     Map<String, Map<String, Double>> buySellRatios = new ConcurrentHashMap<>();
-    long currentWindowEnd = System.currentTimeMillis();
-    long currentWindowStart = currentWindowEnd - (WINDOW_SIZE_SECONDS * 1000);
-
-    tradeWindows.forEach((marketCode, trades) -> {
-      double totalBuyAmount = 0;
-      double totalSellAmount = 0;
-      Iterator<Map<String, Object>> iterator = trades.iterator();
-      while (iterator.hasNext()) {
-        Map<String, Object> trade = iterator.next();
-        long timestamp = (Long) trade.get("timestamp");
-        if (timestamp < currentWindowStart) {
-          iterator.remove(); // 오래된 데이터 제거
-          continue;
-        }
-        double amount = (Double) trade.get("amount");
-        String type = (String) trade.get("type"); // "ASK" (매도), "BID" (매수)
-        if ("BID".equals(type)) {
-          totalBuyAmount += amount;
-        } else if ("ASK".equals(type)) {
-          totalSellAmount += amount;
-        }
+    long cutoff = System.currentTimeMillis() - WINDOW_SIZE_SECONDS * 1000;
+    tradeWindows.forEach((market, list) -> {
+      list.removeIf(e -> ((Long)e.get("timestamp")) < cutoff);
+      double buy = 0, sell = 0;
+      for (Map<String, Object> ev : list) {
+        double amt = (Double) ev.get("amount");
+        String type = (String) ev.get("type");
+        if ("BID".equals(type)) buy += amt;
+        else if ("ASK".equals(type)) sell += amt;
       }
-
-      double totalAmount = totalBuyAmount + totalSellAmount;
-      if (totalAmount > 0) {
-        Map<String, Double> ratio = new HashMap<>();
-        ratio.put("buyRatio", totalBuyAmount / totalAmount);
-        ratio.put("sellRatio", totalSellAmount / totalAmount);
-        buySellRatios.put(marketCode, ratio);
+      double tot = buy + sell;
+      if (tot > 0) {
+        Map<String, Double> r = new HashMap<>();
+        r.put("buyRatio", buy / tot);
+        r.put("sellRatio", sell / tot);
+        buySellRatios.put(market, r);
       }
     });
 
+    // build DTO lists
+    List<CoinResponseDto> favorites = new ArrayList<>();
+    List<CoinResponseDto> normals = new ArrayList<>();
 
-    List<CoinResponseDto> allCoins = new ArrayList<>();
-    List<CoinResponseDto> favoriteCoinDtos = new ArrayList<>();
-    List<CoinResponseDto> normalCoinDtos = new ArrayList<>();
+    for (String key : new ArrayList<>(latestTickers.keySet())) {
+      UpbitTickerResponse t = latestTickers.get(key);
+      if (t == null) continue;
+      String mc = t.getMarketCode();
+      if (mc == null) continue;
+      String sym = mc.contains("-") ? mc.split("-")[1] : mc;
 
-    for (String marketCode : new ArrayList<>(latestTickers.keySet())) {
-      UpbitTickerResponse ticker = latestTickers.get(marketCode);
-      if (ticker == null) continue;
+      double v1 = latest1MinuteVolume.getOrDefault(mc, 0.0);
+      double v5 = latest5MinuteVolume.getOrDefault(mc, 0.0);
+      double v15 = latest15MinuteVolume.getOrDefault(mc, 0.0);
+      double v1h = latest1HourVolume.getOrDefault(mc, 0.0);
 
-      String currentMarketId = ticker.getCode() != null ? ticker.getCode() : ticker.getMarket();
-      if (currentMarketId == null) { continue; }
-      String[] marketParts = currentMarketId.split("-");
-      String symbol = marketParts.length > 1 ? marketParts[1] : marketParts[0];
-
-      double volume1m = latest1MinuteVolume.getOrDefault(currentMarketId, 0.0);
-      double volume15m = latest15MinuteVolume.getOrDefault(currentMarketId, 0.0);
-      double volume1h = latest1HourVolume.getOrDefault(currentMarketId, 0.0);
-
-      Double changeRate = ticker.getChangeRate();
-      Double accTradePrice24h = ticker.getAccTradePrice24h();
-
-      CoinResponseDto dto = new CoinResponseDto(
-              null, currentMarketId, symbol, ticker.getTradePrice(),
-              String.format("%.2f%%", changeRate != null ? changeRate * 100 : 0.0),
-              accTradePrice24h,
-              volume1m, volume15m, volume1h, List.of()
-      );
-
-      // 즐겨찾기 분류
-      if (favoriteMarkets.contains(currentMarketId)) {
-        favoriteCoinDtos.add(dto);
-      } else {
-        normalCoinDtos.add(dto);
-      }
+      CoinResponseDto dto = new CoinResponseDto(null, mc, sym, t.getTradePriceNormalized(),
+              String.format("%.2f%%", t.getChangeRate() != null ? t.getChangeRate() * 100 : 0.0),
+              t.getAccTradePrice24h(), v1, v5, v15, v1h, List.of());
+      if (favoriteMarkets.contains(mc)) favorites.add(dto);
+      else normals.add(dto);
     }
 
-    // 즐겨찾기 코인 정렬 (1분봉 기준)
-    favoriteCoinDtos.sort(Comparator.comparing(CoinResponseDto::getVolume1m).reversed());
-
-    // 일반 코인 정렬
-    normalCoinDtos.sort(Comparator.comparing(CoinResponseDto::getAccTradePrice24h, Comparator.nullsLast(Comparator.reverseOrder())) // 24H 거래대금 내림차순
-            .thenComparing(CoinResponseDto::getPriceChange, Comparator.nullsLast(Comparator.reverseOrder()))); // 변화율 내림차순 (String이므로 주의)
-
-
-    // 필터링 (일반 코인 중 최소 거래대금 미달 시 제외)
-    List<CoinResponseDto> filteredNormalCoinDtos = normalCoinDtos.stream()
-            .filter(coin -> {
-              // 즐겨찾기가 아닌 코인만 필터링합니다. 즐겨찾기 코인은 필터링 조건과 무관하게 항상 표시됩니다.
-              // AccTradePrice24h가 null일 수 있으므로 null 체크
-              return coin.getAccTradePrice24h() != null && coin.getAccTradePrice24h() >= MIN_TRADE_VOLUME_24H_THRESHOLD;
-            })
+    // favorites first (sorted by v1), then normals filtered by 5min threshold and sorted
+    favorites.sort(Comparator.comparing(CoinResponseDto::getVolume1m).reversed());
+    List<CoinResponseDto> filteredNormals = normals.stream()
+            .filter(c -> c.getVolume5m() >= MIN_5MIN_VOLUME_THRESHOLD)
+            .sorted(Comparator.comparing(CoinResponseDto::getVolume1m).reversed())
             .collect(Collectors.toList());
 
+    List<CoinResponseDto> all = new ArrayList<>();
+    all.addAll(favorites);
+    all.addAll(filteredNormals);
 
-    // 최종 코인 리스트 (즐겨찾기 + 필터링된 일반 코인)
-    allCoins.addAll(favoriteCoinDtos); // 즐겨찾기 코인 먼저 추가
-    allCoins.addAll(filteredNormalCoinDtos); // 그 다음 일반 코인 추가
-
-
-    // =========================================================
-    // 프론트엔드로 데이터 푸시
-    // =========================================================
-    messagingTemplate.convertAndSend("/topic/market-data", allCoins); // 모든 코인 목록 (정렬, 필터링, 즐겨찾기 포함)
-    messagingTemplate.convertAndSend("/topic/buy-sell-ratio", buySellRatios); // 매수/매도세 비율 데이터
-
-    // 캔들 버퍼는 여기서 처리하지 않습니다.
+    messagingTemplate.convertAndSend("/topic/market-data", all);
+    messagingTemplate.convertAndSend("/topic/buy-sell-ratio", buySellRatios);
   }
 }

@@ -1,4 +1,3 @@
-// backend/src/main/java/coinalarm/Coin_Alarm/upbit/UpbitTickerResponse.java
 package coinalarm.Coin_Alarm.upbit;
 
 import lombok.Getter;
@@ -15,33 +14,49 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UpbitTickerResponse {
 
-  @JsonProperty("ty") // WebSocket Trade/Ticker 메시지의 "ty" 필드
+  @JsonProperty("ty")
   private String ty;
 
-  @JsonProperty("cd") // WebSocket Trade/Ticker 메시지의 "cd" 필드 (마켓 코드)
-  private String code;
+  @JsonProperty("cd")
+  private String code; // WebSocket에서 주로 사용하는 마켓코드 필드
 
-  @JsonProperty("market") // <-- REST API Ticker 응답용 (getMarket()을 위해 다시 살림!)
-  private String market;
+  @JsonProperty("market")
+  private String market; // REST API에서 오는 필드
 
-  @JsonProperty("tp") // WebSocket Trade 메시지의 "tp" 필드 (체결 가격)
-  private Double tradePrice;
+  @JsonProperty("tp")
+  private Double tradePrice; // WS field tp
 
-  @JsonProperty("tv") // WebSocket Trade 메시지의 "tv" 필드 (체결량)
-  private Double tradeVolume;
+  @JsonProperty("trade_price")
+  private Double tradePriceRest; // REST field
 
-  @JsonProperty("change_rate") // REST/WebSocket Ticker 메시지 (변동률)
+  @JsonProperty("tv")
+  private Double tradeVolume; // WS field tv
+
+  @JsonProperty("trade_volume")
+  private Double tradeVolumeRest; // REST field
+
+  @JsonProperty("change_rate")
   private Double changeRate;
 
-  @JsonProperty("acc_trade_price_24h") // REST API Ticker 응답용 (24H 누적 거래대금)
+  @JsonProperty("acc_trade_price_24h")
   private Double accTradePrice24h;
 
-  @JsonProperty("trade_timestamp") // WebSocket Trade 메시지
-  private Long tradeTimestamp;
+  @JsonProperty("ab")
+  private String askBid; // ASK/BID
 
-  @JsonProperty("seq") // WebSocket Trade/Ticker 메시지
-  private Long seq;
-
-  @JsonProperty("tms") // WebSocket Trade 메시지
+  @JsonProperty("tms")
   private Long tms;
+
+  // Normalized getters
+  public Double getTradePriceNormalized() {
+    return tradePrice != null ? tradePrice : tradePriceRest;
+  }
+  public Double getTradeVolumeNormalized() {
+    return tradeVolume != null ? tradeVolume : tradeVolumeRest;
+  }
+  public String getMarketCode() {
+    if (code != null && !code.isEmpty()) return code;
+    if (market != null && !market.isEmpty()) return market;
+    return null;
+  }
 }
