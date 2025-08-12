@@ -15,68 +15,33 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UpbitTickerResponse {
 
-  // WebSocket 메시지 타입 (예: "trade", "ticker" 등) - 일부 메시지에 포함될 수 있음
-  @JsonProperty("ty")
+  @JsonProperty("ty") // WebSocket Trade/Ticker 메시지의 "ty" 필드
   private String ty;
 
-  // WebSocket: 'cd' 필드에 마켓코드가 오는 경우가 많음 (KRW-BTC 등)
-  @JsonProperty("cd")
+  @JsonProperty("cd") // WebSocket Trade/Ticker 메시지의 "cd" 필드 (마켓 코드)
   private String code;
 
-  // REST API /ticker 에서는 'market' 필드가 있음 -> REST와 호환되게 유지
-  @JsonProperty("market")
+  @JsonProperty("market") // <-- REST API Ticker 응답용 (getMarket()을 위해 다시 살림!)
   private String market;
 
-  // WebSocket trade 메시지에서 체결가 필드명: tp (trade price) 또는 trade_price (REST)
-  @JsonProperty("tp")
+  @JsonProperty("tp") // WebSocket Trade 메시지의 "tp" 필드 (체결 가격)
   private Double tradePrice;
 
-  @JsonProperty("trade_price")
-  private Double tradePriceFromRest; // REST 응답용 보조필드 (optional)
-
-  // WebSocket trade 메시지에서 체결량 필드명: tv (trade volume) 또는 trade_volume (REST)
-  @JsonProperty("tv")
+  @JsonProperty("tv") // WebSocket Trade 메시지의 "tv" 필드 (체결량)
   private Double tradeVolume;
 
-  @JsonProperty("trade_volume")
-  private Double tradeVolumeFromRest; // REST 응답용 보조필드
-
-  // 24H 누적 거래대금 (REST ticker에서 제공)
-  @JsonProperty("acc_trade_price_24h")
-  private Double accTradePrice24h;
-
-  @JsonProperty("change_rate")
+  @JsonProperty("change_rate") // REST/WebSocket Ticker 메시지 (변동률)
   private Double changeRate;
 
-  // WebSocket timestamps / seq 등
-  @JsonProperty("tms")
-  private Long tms;
+  @JsonProperty("acc_trade_price_24h") // REST API Ticker 응답용 (24H 누적 거래대금)
+  private Double accTradePrice24h;
 
-  @JsonProperty("trade_timestamp")
+  @JsonProperty("trade_timestamp") // WebSocket Trade 메시지
   private Long tradeTimestamp;
 
-  @JsonProperty("seq")
+  @JsonProperty("seq") // WebSocket Trade/Ticker 메시지
   private Long seq;
 
-  // 매수/매도 구분(ASK/BID) - WebSocket trade에 있을 수 있음
-  @JsonProperty("ab")
-  private String askBid;
-
-  // Helper getters to normalize between WS/REST field names
-  public Double getTradePriceNormalized() {
-    if (tradePrice != null) return tradePrice;
-    return tradePriceFromRest;
-  }
-
-  public Double getTradeVolumeNormalized() {
-    if (tradeVolume != null) return tradeVolume;
-    return tradeVolumeFromRest;
-  }
-
-  // Provide a unified market code getter (code preferred, fallback to market)
-  public String getMarketCode() {
-    if (code != null && !code.isEmpty()) return code;
-    if (market != null && !market.isEmpty()) return market;
-    return null;
-  }
+  @JsonProperty("tms") // WebSocket Trade 메시지
+  private Long tms;
 }
