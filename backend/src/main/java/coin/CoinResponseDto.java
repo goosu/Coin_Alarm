@@ -1,50 +1,88 @@
-// backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinResponseDto.java
 package coinalarm.Coin_Alarm.coin;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Setter; // Setter 어노테이션 임포트 추가 (필요한 경우)
+import java.util.List;
+import java.util.Objects;
 
-import java.util.List; // java.util.List 임포트 필요!
-
-@Getter
-@Setter // MarketDataService에서 값을 설정해야 하므로 @Setter 추가
-@NoArgsConstructor
-@AllArgsConstructor
 public class CoinResponseDto {
+
   private Long id;
   private String name;
   private String symbol;
   private Double currentPrice;
   private String priceChange;
-  private Double volume; // 24H 거래대금 (총 누적 거래대금)
+  private Double volume; // 24H 거래대금
 
-  private Double volume1m;  // 1분봉 거래대금
-  private Double volume15m; // 15분봉 거래대금
-  private Double volume1h;  // 1시간봉 거래대금
+  private Double volume1m;
+  private Double volume5m;
+  private Double volume15m;
+  private Double volume1h;
 
   private List<String> alarm;
 
-  /**
-   * Coin 엔티티를 CoinResponseDto로 변환하는 정적 팩토리 메서드.
-   * 주로 DB에서 가져온 Coin 데이터를 프론트엔드에 전달할 때 사용됩니다.
-   * Coin 엔티티에 없는 필드(예: currentPrice, volume, 캔들 거래대금)는 0.0 등의 기본값으로 초기화됩니다.
-   */
-  public static CoinResponseDto fromEntity(Coin coin) {
-    // 이 List.of()를 사용하려면 상단에 import java.util.List; 가 있어야 합니다.
-    return new CoinResponseDto(
-            coin.getId(),                                     // 1. id
-            coin.getName(),                                   // 2. name
-            // 3. symbol: 'KRW-BTC' -> 'BTC' (임시 추출)
-            coin.getName().split("-").length > 1 ? coin.getName().split("-")[1] : coin.getName(),
-            0.0,                                              // 4. currentPrice (Coin 엔티티에는 이 필드 없음)
-            coin.getPriceChange(),                            // 5. priceChange
-            0.0,                                              // 6. volume (24H 거래대금, Coin 엔티티에는 이 필드 없음)
-            0.0,                                              // 7. volume1m (Coin 엔티티에는 이 필드 없음)
-            0.0,                                              // 8. volume15m (Coin 엔티티에는 이 필드 없음)
-            0.0,                                              // 9. volume1h (Coin 엔티티에는 이 필드 없음)
-            coin.getAlarm()                                   // 10. alarm (List<String>)
-    );
+  public CoinResponseDto() {
+  }
+
+  public CoinResponseDto(Long id, String name, String symbol,
+                         Double currentPrice, String priceChange, Double volume,
+                         Double volume1m, Double volume5m, Double volume15m, Double volume1h,
+                         List<String> alarm) {
+    this.id = id;
+    this.name = name;
+    this.symbol = symbol;
+    this.currentPrice = currentPrice;
+    this.priceChange = priceChange;
+    this.volume = volume;
+    this.volume1m = volume1m;
+    this.volume5m = volume5m;
+    this.volume15m = volume15m;
+    this.volume1h = volume1h;
+    this.alarm = alarm;
+  }
+
+  // getters & setters (명시적)
+  public Long getId() { return id; }
+  public void setId(Long id) { this.id = id; }
+
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+
+  public String getSymbol() { return symbol; }
+  public void setSymbol(String symbol) { this.symbol = symbol; }
+
+  public Double getCurrentPrice() { return currentPrice; }
+  public void setCurrentPrice(Double currentPrice) { this.currentPrice = currentPrice; }
+
+  public String getPriceChange() { return priceChange; }
+  public void setPriceChange(String priceChange) { this.priceChange = priceChange; }
+
+  public Double getVolume() { return volume; }
+  public void setVolume(Double volume) { this.volume = volume; }
+
+  public Double getVolume1m() { return volume1m; }
+  public void setVolume1m(Double volume1m) { this.volume1m = volume1m; }
+
+  public Double getVolume5m() { return volume5m; } // 중요: 이 getter가 문제였음
+  public void setVolume5m(Double volume5m) { this.volume5m = volume5m; }
+
+  public Double getVolume15m() { return volume15m; }
+  public void setVolume15m(Double volume15m) { this.volume15m = volume15m; }
+
+  public Double getVolume1h() { return volume1h; }
+  public void setVolume1h(Double volume1h) { this.volume1h = volume1h; }
+
+  public List<String> getAlarm() { return alarm; }
+  public void setAlarm(List<String> alarm) { this.alarm = alarm; }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof CoinResponseDto)) return false;
+    CoinResponseDto that = (CoinResponseDto) o;
+    return Objects.equals(id, that.id) && Objects.equals(name, that.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, name);
   }
 }

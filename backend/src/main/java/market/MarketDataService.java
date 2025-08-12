@@ -195,7 +195,7 @@ public class MarketDataService {
 
       return new CoinResponseDto(null, marketCode, symbol,
               t.getTradePriceNormalized(), String.format("%.2f%%", t.getChangeRate() != null ? t.getChangeRate() * 100 : 0.0),
-              t.getAccTradePrice24h(), v1, v5, v15, v1h, List.of());
+              t.getAccTradePrice24h(), v1, v5, v15, v1h, Collections.<String>emptyList());
     }).collect(Collectors.toList());
   }
 
