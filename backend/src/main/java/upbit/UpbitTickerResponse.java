@@ -1,36 +1,82 @@
 // backend/src/main/java/coinalarm/Coin_Alarm/upbit/UpbitTickerResponse.java
-package coinalarm.Coin_Alarm.upbit; // <-- 정확한 패키지 경로
+package coinalarm.Coin_Alarm.upbit;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
-import com.fasterxml.jackson.annotation.JsonProperty; // JSON 필드명을 매핑하기 위해 필요
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-// Upbit API의 ticker(시세) 응답을 매핑할 DTO입니다.
-// 필요한 필드만 정의했습니다.
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UpbitTickerResponse {
 
-  @JsonProperty("market") // JSON의 'market' 필드를 자바의 'market'에 매핑
-  private String market; // 마켓 코드 (예: KRW-BTC)
+  // WebSocket 메시지 타입 (예: "trade", "ticker" 등) - 일부 메시지에 포함될 수 있음
+  @JsonProperty("ty")
+  private String ty;
 
-  @JsonProperty("trade_price") // JSON의 'trade_price' 필드를 'tradePrice'에 매핑
-  private Double tradePrice; // 현재가
+  // WebSocket: 'cd' 필드에 마켓코드가 오는 경우가 많음 (KRW-BTC 등)
+  @JsonProperty("cd")
+  private String code;
 
-  @JsonProperty("trade_volume") // <--- 이 필드가 정확히 있어야 합니다!
+  // REST API /ticker 에서는 'market' 필드가 있음 -> REST와 호환되게 유지
+  @JsonProperty("market")
+  private String market;
+
+  // WebSocket trade 메시지에서 체결가 필드명: tp (trade price) 또는 trade_price (REST)
+  @JsonProperty("tp")
+  private Double tradePrice;
+
+  @JsonProperty("trade_price")
+  private Double tradePriceFromRest; // REST 응답용 보조필드 (optional)
+
+  // WebSocket trade 메시지에서 체결량 필드명: tv (trade volume) 또는 trade_volume (REST)
+  @JsonProperty("tv")
   private Double tradeVolume;
-//  @JsonProperty("trade_volume") // JSON의 'trade_volume' 필드를 'tradeVolume'에 매핑
-//  private Double tradeVolume; // 최근 24시간 거래량
-  @JsonProperty("acc_trade_price_24h") // JSON의 'acc_trade_price_24h' 필드를 'accTradePrice24h'에 매핑
-  private Double accTradePrice24h; // 24시간 누적 거래 가격
 
-  @JsonProperty("change_rate") // JSON의 'change_rate' 필드를 'changeRate'에 매핑
-  private Double changeRate; // 24시간 대비 변화율 (0.005 = 0.5%)
+  @JsonProperty("trade_volume")
+  private Double tradeVolumeFromRest; // REST 응답용 보조필드
 
-  // 필요한 경우 다른 필드를 추가할 수 있습니다. (예: `high_price`, `low_price` 등)
-  // Upbit API 문서: https://docs.upbit.com/reference/시세-조회
+  // 24H 누적 거래대금 (REST ticker에서 제공)
+  @JsonProperty("acc_trade_price_24h")
+  private Double accTradePrice24h;
+
+  @JsonProperty("change_rate")
+  private Double changeRate;
+
+  // WebSocket timestamps / seq 등
+  @JsonProperty("tms")
+  private Long tms;
+
+  @JsonProperty("trade_timestamp")
+  private Long tradeTimestamp;
+
+  @JsonProperty("seq")
+  private Long seq;
+
+  // 매수/매도 구분(ASK/BID) - WebSocket trade에 있을 수 있음
+  @JsonProperty("ab")
+  private String askBid;
+
+  // Helper getters to normalize between WS/REST field names
+  public Double getTradePriceNormalized() {
+    if (tradePrice != null) return tradePrice;
+    return tradePriceFromRest;
+  }
+
+  public Double getTradeVolumeNormalized() {
+    if (tradeVolume != null) return tradeVolume;
+    return tradeVolumeFromRest;
+  }
+
+  // Provide a unified market code getter (code preferred, fallback to market)
+  public String getMarketCode() {
+    if (code != null && !code.isEmpty()) return code;
+    if (market != null && !market.isEmpty()) return market;
+    return null;
+  }
 }

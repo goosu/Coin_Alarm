@@ -1,4 +1,15 @@
-/* frontend/src/index.css */
+/* index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 커스텀 Keyframes 추가 */
+@keyframes pulse-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+/* 커스텀 클래스 (선택 사항, 직접 사용하는 대신 inline style도 가능) */
+.animate-pulse-fast {
+  animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
