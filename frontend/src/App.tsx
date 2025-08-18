@@ -1,355 +1,563 @@
 // frontend/src/App.tsx
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
+import "./index.css"; // 스타일시트 import
 
-import React, { useState, useEffect, useRef } from 'react';
-import './index.css';
-// useQuery 훅은 초기 로딩용으로 남겨두고, 실시간 업데이트는 WebSocket으로 처리
-import { useQuery } from '@tanstack/react-query';
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
-// SockJS와 StompJS 임포트
-import SockJS from 'sockjs-client';
-import Stomp from 'stompjs';
-
-// useClickOutside 훅은 기존과 동일
-function useClickOutside(ref: React.RefObject<HTMLElement>, callback: () => void) {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        callback();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [ref, callback]);
-}
-
-// Coin 인터페이스는 기존과 동일 (백엔드 CoinResponseDto와 일치)
-interface Coin {
-  id: number | null;
-  name: string;
+// 코인 데이터 타입 정의 (백엔드에서 오는 데이터 포맷에 맞춤)
+type Coin = {
   symbol: string;
-  currentPrice: number | null;
-  priceChange: string;
-  volume: number; // 24H 거래대금
-  volume1m: number;  // 1분봉 거래대금
-  volume15m: number; // 15분봉 거래대금
-  volume1h: number;  // 1시간봉 거래대금
-  alarm: string[];
+  price: number;
+  marketCap?: number; // 시가총액 (선택적)
+  volume1m: number; // 1분봉 거래대금 (필수)
+  volume24h?: number; // 24시간 거래대금 (선택적)
+  volume15m?: number; // 15분봉 거래대금 (선택적)
+  volume1h?: number; // 1시간봉 거래대금 (선택적)
+  buyVolume?: number; // 매수 거래대금 (줄다리기용)
+  sellVolume?: number; // 매도 거래대금 (줄다리기용)
+  maintenanceRate?: number; // 유지율 (선택적)
+  change24h?: number; // 전일대비 (선택적)
+  timestamp?: number; // 데이터 수신 시간
+};
+
+// WebSocket URL. .env 파일에 REACT_APP_WS_URL=ws://localhost:8080/ws 등으로 설정하세요.
+const WS_URL = process.env.REACT_APP_WS_URL || "ws://localhost:8080/ws";
+const ALARM_THRESHOLD = 300_000_000; // 1분봉 거래대금 알람 임계값 (3억)
+const SOUND_SRC = "/alarm.mp3"; // 알람 소리 파일 경로. public 폴더에 넣어주세요.
+
+// ============================================================================
+// Custom Hooks & Utilities
+// ============================================================================
+
+// localStorage를 사용하는 Custom Hook (soundEnabled, filters, showAll 등 저장용)
+function useLocalStorage<T>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [state, setState] = useState<T>(() => {
+    try {
+      const storedValue = localStorage.getItem(key);
+      return storedValue ? (JSON.parse(storedValue) as T) : initial;
+    } catch (error) {
+      console.error(`Error reading localStorage key “${key}”:`, error);
+      return initial;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch (error) {
+      console.error(`Error writing localStorage key “${key}”:`, error);
+    }
+  }, [key, state]);
+
+  return [state, setState];
 }
+
+// 숫자를 화폐 형식으로 포맷 (예: 1,000,000)
+function formatMoney(n: number): string {
+  return n.toLocaleString();
+}
+
+// ============================================================================
+// Main App Component
+// ============================================================================
 
 export default function App() {
-  // 필터 상태 (전체, 대형, 중형, 소형)
-  const [filters, setFilters] = useState({
-    all: true,
-    large: false,
-    mid: false,
-    small: false,
+  // 앱 실행 확인용 로그: 이 로그가 찍히지 않으면 App 컴포넌트가 마운트조차 안 된 것
+  console.log("App component rendered/re-rendered.");
+
+  const [liveCoins, setLiveCoins] = useState<Record<string, Coin>>({}); // 실시간 코인 데이터를 객체 형태로 저장
+  const [favorites, setFavorites] = useState<string[]>([]); // 즐겨찾기 코인 심볼 배열
+  const [soundEnabled, setSoundEnabled] = useLocalStorage<boolean>("soundEnabled", false); // 알람 사운드 활성화 여부
+  const [alerts, setAlerts] = useState<{ id: string; symbol: string; msg: string; ts: number }[]>([]); // 알람 로그
+  const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string | null>(null); // 현재 선택된 코인 심볼 (디테일 패널용)
+
+  // 코인 목록 필터 상태 (시가총액 기준)
+  const [filters, setFilters] = useLocalStorage('coinFilters', {
+    all: true, large: false, mid: false, small: false
   });
+  const [showAllCoins, setShowAllCoins] = useLocalStorage<boolean>("showAllCoins", false); // '모든 종목 보기' 토글
 
-  // 옵션 컨텐츠 관련 상태 및 함수들은 기존과 동일
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [showOptionContent, setShowOptionContent] = useState(false);
-  const optionContentRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null); // WebSocket 인스턴스 참조
+  const alarmAudioRef = useRef<HTMLAudioElement | null>(null); // Audio 객체 참조
+  const lastAlertTimestamps = useRef<Record<string, number>>({}); // 심볼별 마지막 알람 시간 (쿨타임용)
 
-  useClickOutside(optionContentRef, () => {
-    if (showOptionContent) {
-      setShowOptionContent(false);
-      setSelectedOption(null);
-    }
-  });
+  // ============================================================================
+  // WebSocket Connection & Data Handling
+  // ============================================================================
 
-  const handleOptionClick = (optionNum: number) => {
-    if (selectedOption === optionNum && showOptionContent) {
-      setShowOptionContent(false);
-      setSelectedOption(null);
-    } else {
-      setSelectedOption(optionNum);
-      setShowOptionContent(true);
-    }
-  };
-
-  const handleFilterChange = (filterName: 'all' | 'large' | 'mid' | 'small') => {
-    setFilters(prevFilters => {
-      if (filterName === 'all') {
-        if (prevFilters.all) {
-          return { all: false, large: true, mid: true, small: true };
-        } else {
-          return { all: true, large: false, mid: false, small: false };
-        }
-      } else {
-        const newIndividualState = { ...prevFilters, [filterName]: !prevFilters[filterName] };
-        if (!newIndividualState.large && !newIndividualState.mid && !newIndividualState.small) {
-          return { all: true, large: false, mid: false, small: false };
-        } else {
-          return { ...newIndividualState, all: false };
-        }
-      }
-    });
-  };
-
-  // --- WebSocket 연결 및 실시간 데이터 처리 로직 ---
-  const [liveCoins, setLiveCoins] = useState<Coin[]>([]); // 실시간 코인 데이터 상태
-  const [alarmLogs, setAlarmLogs] = useState<string[]>([]); // 실시간 알람 로그
-
+  // WebSocket 연결 설정 및 메시지 수신 처리
   useEffect(() => {
-    // WebSocket 연결 설정
-    const socket = new SockJS('http://localhost:8080/ws'); // 백엔드 WebSocket 엔드포인트
-    const stompClient = Stomp.over(socket);
+    console.log("App: WebSocket effect running, attempting to connect to:", WS_URL); // WebSocket 연결 시도 로그
 
-    stompClient.connect({}, () => {
-      console.log('Connected to WebSocket!');
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
 
-      // 1. 코인 데이터 구독
-      stompClient.subscribe('/topic/market-data', (message) => {
-        const receivedCoins: Coin[] = JSON.parse(message.body);
-        // 클라이언트 필터링 로직 (백엔드에서 필터링해서 보내주지 않는다면 클라이언트에서 다시 필터링)
-        const filteredClientCoins = receivedCoins.filter(coin => {
-          if (filters.all) return true;
-          // 이 필터 로직은 백엔드의 MarketDataService와 유사하게 정의해야 함
-          const currentMarketCap = coin.volume; // 여기서는 volume(24H거래대금)을 임시 시총으로 사용
-          let isIncluded = false;
-          if (filters.large && currentMarketCap >= 5_000_000_000_000) isIncluded = true;
-          if (filters.mid && currentMarketCap >= 700_000_000_000 && currentMarketCap < 5_000_000_000_000) isIncluded = true;
-          if (filters.small && currentMarketCap >= 50_000_000_000 && currentMarketCap < 700_000_000_000) isIncluded = true;
-          return isIncluded;
-        });
-        setLiveCoins(filteredClientCoins); // 상태 업데이트
-      });
+    ws.onopen = () => console.log("WebSocket connected:", WS_URL);
 
-      // 2. 알람 로그 구독
-      stompClient.subscribe('/topic/alarm-log', (message) => {
-        const newAlarm = message.body;
-        setAlarmLogs(prevLogs => [newAlarm, ...prevLogs].slice(0, 50)); // 최신 50개 유지
-        // 알람 소리 재생 로직 추가 (추후 구현)
-        new Audio('/sound/beep.mp3').play(); // 예시: sound/beep.mp3 파일 필요
-      });
+    ws.onmessage = (event) => {
+      try {
+        // 백엔드에서 받은 데이터는 JSON 형태라고 가정
+        const receivedData = JSON.parse(event.data);
+        // 데이터가 단일 객체일 수도, 여러 코인 정보가 담긴 배열일 수도 있음
+        const items: any[] = Array.isArray(receivedData) ? receivedData : [receivedData];
 
-      // (선택 사항) 초기 데이터 요청
-      // stompClient.send("/app/request-market-data", {}, JSON.stringify({}));
-    });
+        let hasNewData = false;
+        // console.log("WS received items count:", items.length); // 받은 데이터 개수 로그
+        const updatedCoins = { ...liveCoins }; // liveCoins는 이전 상태 기반이므로 deps에 넣지 않음.
+
+        for (const item of items) {
+          if (!item || !item.symbol) {
+            // console.warn("Received invalid WS item:", item); // 유효하지 않은 항목 경고
+            continue; // 유효하지 않은 데이터는 건너뜀
+          }
+
+          const symbol = item.symbol;
+          const prevCoin = updatedCoins[symbol] || { symbol, price: 0, volume1m: 0 }; // 이전 데이터 또는 기본값
+
+          // 새 코인 데이터 객체 생성
+          const newCoin: Coin = {
+            symbol: symbol,
+            price: Number(item.price ?? prevCoin.price),
+            marketCap: Number(item.marketCap ?? prevCoin.marketCap),
+            volume1m: Number(item.volume1m ?? prevCoin.volume1m),
+            volume24h: Number(item.volume24h ?? prevCoin.volume24h),
+            volume15m: Number(item.volume15m ?? prevCoin.volume15m),
+            volume1h: Number(item.volume1h ?? prevCoin.volume1h),
+            buyVolume: Number(item.buyVolume ?? prevCoin.buyVolume ?? 0),
+            sellVolume: Number(item.sellVolume ?? prevCoin.sellVolume ?? 0),
+            maintenanceRate: Number(item.maintenanceRate ?? prevCoin.maintenanceRate),
+            change24h: Number(item.change24h ?? prevCoin.change24h),
+            timestamp: Number(item.timestamp ?? Date.now()),
+          };
+
+          updatedCoins[symbol] = newCoin; // 코인 데이터 업데이트
+          hasNewData = true;
+
+          // 알람 조건 검사 (1분봉 거래대금 3억 이상)
+          const now = Date.now();
+          const lastAlertTime = lastAlertTimestamps.current[symbol] ?? 0;
+          if (newCoin.volume1m >= ALARM_THRESHOLD && (now - lastAlertTime) > 3000) { // 3초 쿨타임
+            lastAlertTimestamps.current[symbol] = now; // 마지막 알람 시간 업데이트
+            pushAlarm(
+              `${symbol} 1분 체결대금 ${formatMoney(newCoin.volume1m)}원 도달!`,
+              symbol,
+              now
+            );
+          }
+        }
+
+        if (hasNewData) {
+          setLiveCoins(updatedCoins); // 상태 업데이트
+        }
+      } catch (error) {
+        console.error("WebSocket message parsing error:", error, event.data);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected. Attempting to reconnect in 3s...");
+      // 재연결 로직: 현재 wsRef가 이 인스턴스를 참조하고 있다면 재연결 시도
+      // (이전에 setTimeout으로 감싸져 있었는데, 즉시 시도 로직으로 변경. 필요 시 setTimeout 다시 추가)
+      if (wsRef.current === ws) {
+        wsRef.current = null; // 이전 참조 제거
+        // 여기서는 간단히 useEffect가 마운트될 때만 연결 시도하므로, 페이지 새로고침 등으로 재시작 권장.
+        // 또는 외부에서 reconnectionManager 같은 모듈로 재연결 로직 구현 권장.
+      }
+      setTimeout(() => { // 3초 후 재연결 시도 로직 다시 추가. 이펙트가 한 번 더 실행되도록 트리거 (wsRef.current가 null이므로 새 WS 생성)
+        if (!wsRef.current) { // 현재 WS가 없으면 다시 연결 시도
+          console.log("App: Retrying WebSocket connection...");
+          const retryWs = new WebSocket(WS_URL);
+          wsRef.current = retryWs;
+          // 재연결 로직 내부에서 다시 onopen, onmessage 등 설정 (또는 이펙트 자체 재실행 유도)
+          // 하지만 지금은 useEffect의 클린업이 ws를 닫고 wsRef를 null로 만든 후 다시 useEffect가 트리거되는 방식으로 동작함
+        }
+      }, 3000);
+    };
+
+    ws.onerror = (error) => console.error("WebSocket error:", error);
 
     // 컴포넌트 언마운트 시 WebSocket 연결 종료
     return () => {
-      if (stompClient.connected) {
-        stompClient.disconnect(() => {
-          console.log('Disconnected from WebSocket.');
-        });
-      }
+      console.log("WebSocket cleanup: closing connection."); // 클린업 로그
+      ws.close();
+      wsRef.current = null;
     };
-  }, [filters]); // filters 상태가 변경될 때마다 재연결하여 필터 다시 적용 (또는 클라이언트 필터링만 진행)
-
-  // --- 기존 useQuery 훅은 제거하거나 초기 로딩용으로만 사용 ---
-  // 여기서는 WebSocket이 주요 데이터 소스이므로 useQuery는 더 이상 필요 없습니다.
-  // 필요한 경우, 초기 데이터를 로드하고 WebSocket이 연결될 때까지 보여주는 용도로는 사용 가능
-  const { data: initialCoins, isLoading, isError, error } = useQuery<Coin[], Error>({
-    queryKey: ['initialCoins'],
-    queryFn: async () => {
-      // 초기 로딩 시 기존 REST API를 호출
-      const apiUrl = `http://localhost:8080/api/market-data?all=true&large=false&mid=false&small=false`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
-      return response.json();
-    },
-    staleTime: Infinity, // 초기 로드 후 변경되지 않음
-    enabled: liveCoins.length === 0 // liveCoins가 비어있을 때만 초기 로딩
-  });
-
-  // 만약 초기 로딩 데이터가 있으면 그걸 먼저 보여줍니다.
-  const coinsToDisplay = liveCoins.length > 0 ? liveCoins : (initialCoins || []);
-
-  // filteredAlarms 로직은 알람 로그로 대체되거나, 다른 방식으로 사용됩니다.
-  // WebSocket에서 받은 알람 메시지를 직접 사용할 예정
-  // const filteredAlarms = coinsToDisplay?.filter(coin => coin.alarm && coin.alarm.length > 0) || [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 마운트 시 한 번만 실행, WS_URL 변경될 때 재실행
 
 
-  // --- Top 5 코인 상태 (WebSocket으로 받을 예정) ---
-  const [top5Coins, setTop5Coins] = useState<Coin[]>([]);
+  // ============================================================================
+  // Favorites Management (Server Sync)
+  // ============================================================================
+
+  // 컴포넌트 마운트 시 서버에서 즐겨찾기 목록 로드
   useEffect(() => {
-    // Top 5 코인 구독
-    if (Stomp.over(new SockJS('http://localhost:8080/ws')).connected) { // 이미 연결된 Stomp 클라이언트 사용이 안전
-      Stomp.over(new SockJS('http://localhost:8080/ws')).subscribe('/topic/top-5-market-data', (message) => {
-        const receivedTop5: Coin[] = JSON.parse(message.body);
-        setTop5Coins(receivedTop5);
+    let componentMounted = true;
+    console.log("App: Favorites effect running."); // 즐겨찾기 로드 시도 로그
+    (async () => {
+      try {
+        const serverFavorites = await fetchFavorites();
+        if (componentMounted) setFavorites(serverFavorites);
+      } catch (error) {
+        console.warn("Failed to load favorites from server. Falling back to local storage.", error);
+        // 서버 로드 실패 시, 로컬 스토리지에 저장된 즐겨찾기 목록 사용
+        try {
+          const localStoredFavorites = localStorage.getItem("favorites");
+          if (localStoredFavorites) {
+            setFavorites(JSON.parse(localStoredFavorites));
+            console.log("App: Favorites loaded from local storage."); // 로컬 스토리지 로드 로그
+          }
+        } catch (localError) {
+          console.error("Failed to parse local storage favorites:", localError);
+        }
+      }
+    })();
+    return () => {
+      componentMounted = false;
+      console.log("App: Favorites effect cleanup."); // 즐겨찾기 이펙트 클린업
+    };
+  }, []);
+
+  // 즐겨찾기 목록이 변경될 때마다 로컬 스토리지에 저장
+  useEffect(() => {
+    // console.log("App: Favorites changed, saving to local storage."); // 즐겨찾기 저장 로그
+    try {
+      localStorage.setItem("favorites", JSON.stringify(favorites));
+    } catch (error) {
+      console.error("Failed to save favorites to local storage:", error);
+    }
+  }, [favorites]);
+
+  // 즐겨찾기 추가/제거 토글 함수 (서버와 동기화, Optimistic UI 업데이트 적용)
+  const toggleFavorite = useCallback(async (symbol: string) => {
+    const isCurrentlyFavorite = favorites.includes(symbol);
+    console.log(`App: Toggling favorite for ${symbol}. Current: ${isCurrentlyFavorite}`); // 즐겨찾기 토글 로그
+
+    // Optimistic Update: UI를 먼저 업데이트하고 서버 요청
+    setFavorites(prev => isCurrentlyFavorite ? prev.filter(s => s !== symbol) : [symbol, ...prev]);
+
+    try {
+      if (isCurrentlyFavorite) {
+        await removeFavorite(symbol); // 서버에서 제거
+        console.log(`App: Removed ${symbol} from favorites on server.`);
+      } else {
+        await addFavorite(symbol); // 서버에 추가
+        console.log(`App: Added ${symbol} to favorites on server.`);
+      }
+    } catch (error) {
+      console.error(`Failed to sync favorite for ${symbol}. Rolling back UI.`, error);
+      // Rollback: 서버 요청 실패 시 UI 상태를 원래대로 되돌림
+      setFavorites(prev => {
+        const currentSet = new Set(prev);
+        if (isCurrentlyFavorite) { // 제거 실패 -> 다시 추가
+          currentSet.add(symbol);
+        } else { // 추가 실패 -> 다시 제거
+          currentSet.delete(symbol);
+        }
+        return Array.from(currentSet);
       });
+    }
+  }, [favorites]); // favorites 배열이 변경될 때만 함수 재생성
+
+  // ============================================================================
+  // Alarm & Notification Logic
+  // ============================================================================
+
+  // 알람 발생 시 로그에 추가하고 사운드 재생/브라우저 알림 표시
+  const pushAlarm = useCallback((message: string, symbol: string, timestamp: number) => {
+    const alarmId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; // 고유 ID 생성
+    setAlerts(prevAlerts => [{ id: alarmId, symbol, msg: message, ts: timestamp }, ...prevAlerts].slice(0, 100)); // 최대 100개 알람 유지
+    console.log("App: New alarm triggered:", message); // 알람 로그
+
+    // 브라우저 알림 (권한 필요)
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("코인 알람", { body: message, icon: "/coin-icon.png" }); // 알림 아이콘 경로
+      console.log("App: Browser notification shown."); // 브라우저 알림 표시 로그
+    }
+
+    // 알람 사운드 재생
+    if (soundEnabled && alarmAudioRef.current) {
+      alarmAudioRef.current.currentTime = 0; // 재생 위치를 처음으로
+      alarmAudioRef.current.play().catch(e => console.warn("Audio playback failed:", e)); // 재생 실패 시 경고
+    }
+  }, [soundEnabled]);
+
+  // 사운드 활성화 (사용자 제스처 필요)
+  const enableSoundGesture = useCallback(() => {
+    setSoundEnabled(true);
+    console.log("App: Sound enabled via user gesture."); // 사운드 활성화 로그
+    if (alarmAudioRef.current) {
+      // 사용자 제스처를 통해 오디오 재생 컨텍스트 활성화 시도
+      alarmAudioRef.current.play().then(() => {
+        alarmAudioRef.current?.pause(); // 즉시 일시정지하여 소리 안나게 함
+        alarmAudioRef.current!.currentTime = 0; // 재생 위치 초기화
+        console.log("App: Audio context activated successfully.");
+      }).catch(e => console.warn("Failed to enable sound via gesture:", e));
     }
   }, []);
 
+  // ============================================================================
+  // Coin List Filtering & Sorting
+  // ============================================================================
+
+  // 시가총액 기반 코인 필터 로직
+  const passesMarketCapFilter = useCallback((coin: Coin) => {
+    if (filters.all) return true;
+    const marketCap = coin.marketCap ?? 0;
+    if (filters.large && marketCap >= 5_000_000_000_000) return true; // 5조 이상
+    if (filters.mid && marketCap >= 700_000_000_000) return true;     // 7천억 이상
+    if (filters.small && marketCap >= 50_000_000_000) return true;    // 5백억 이상
+    return false;
+  }, [filters]);
+
+  // 코인 목록 필터 변경 핸들러
+  const handleCoinFilterChange = useCallback((key: 'all' | 'large' | 'mid' | 'small') => {
+    console.log("App: Filtering coins by:", key); // 필터 변경 로그
+    setFilters(prev => {
+      if (key === 'all') { // '전체' 선택 시 나머지 필터 해제
+        return { all: true, large: false, mid: false, small: false };
+      }
+      const newFilters = { ...prev, [key]: !prev[key], all: false };
+      // 모든 개별 필터가 해제되면 '전체'를 자동으로 선택
+      if (!newFilters.large && !newFilters.mid && !newFilters.small) {
+        newFilters.all = true;
+      }
+      return newFilters;
+    });
+  }, []);
+
+  // 화면에 표시될 코인 목록 계산 (필터링 및 정렬 적용)
+  const displayedCoins = React.useMemo(() => {
+    console.log("App: Recalculating displayed coins."); // 표시 코인 계산 로그
+    const allCoins = Object.values(liveCoins);
+
+    // 1차 필터: 시가총액 필터 적용
+    let filtered = allCoins.filter(passesMarketCapFilter);
+
+    // 2차 필터: '모든 종목 보기' 토글이 꺼져있으면 즐겨찾기 또는 1분 거래대금 3억 이상만 표시
+    if (!showAllCoins) {
+      filtered = filtered.filter(coin =>
+        favorites.includes(coin.symbol) || coin.volume1m >= ALARM_THRESHOLD
+      );
+    }
+
+    // 3차 정렬: 즐겨찾기 코인 우선, 그 다음 1분 거래대금 내림차순
+    return filtered.sort((a, b) => {
+      const aIsFavorite = favorites.includes(a.symbol);
+      const bIsFavorite = favorites.includes(b.symbol);
+
+      if (aIsFavorite && !bIsFavorite) return -1; // a가 즐겨찾기, b가 아니면 a 먼저
+      if (!aIsFavorite && bIsFavorite) return 1;  // b가 즐겨찾기, a가 아니면 b 먼저
+
+      return b.volume1m - a.volume1m; // 1분봉 거래대금 내림차순
+    });
+  }, [liveCoins, filters, showAllCoins, favorites, passesMarketCapFilter]);
+
+  // ============================================================================
+  // UI Rendering
+  // ============================================================================
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-
-      {/* 새로운 상단 옵션 섹션은 기존과 동일 (옵션 버튼들은 WebSocket과 직접 연관 없음) */}
-      <div className="bg-white p-4 rounded-lg shadow-md m-4 relative">
-        <h2 className="text-xl font-semibold mb-3">새로운 상단 옵션 섹션</h2>
-        <div className="flex space-x-4">
-          <button onClick={() => handleOptionClick(1)} className="p-2 bg-blue-100 rounded hover:bg-blue-200 active:bg-blue-300">옵션1 내용</button>
-          <button onClick={() => handleOptionClick(2)} className="p-2 bg-green-100 rounded hover:bg-green-200 active:bg-green-300">옵션2 내용</button>
-          <button onClick={() => handleOptionClick(3)} className="p-2 bg-purple-100 rounded hover:bg-purple-200 active:bg-purple-300">옵션3 내용</button>
-        </div>
-
-        {showOptionContent && selectedOption && (
-          <div
-            ref={optionContentRef}
-            className="absolute top-full left-0 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-lg z-10 w-full"
-          >
-            {selectedOption === 1 && (
-              <div>
-                <h3 className="font-bold text-lg mb-2">옵션 1 컨텐츠</h3>
-                <p>여기는 옵션 1에 대한 상세 내용입니다.</p>
-                <ul className="list-disc list-inside">
-                  <li>항목 1-1</li>
-                  <li>항목 1-2</li>
-                </ul>
-              </div>
-            )}
-            {selectedOption === 2 && (
-              <div>
-                <h3 className="font-bold text-lg mb-2">옵션 2 컨텐츠</h3>
-                <p>여기는 옵션 2에 대한 상세 내용입니다.</p>
-                <p>더 많은 정보가 여기에 표시됩니다.</p>
-              </div>
-            )}
-            {selectedOption === 3 && (
-              <div>
-                <h3 className="font-bold text-lg mb-2">옵션 3 컨텐츠</h3>
-                <p>옵션 3은 특별한 기능을 제공합니다.</p>
-                <button className="mt-2 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">기능 실행</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* --- 상단 고정 코인 섹션 --- */}
-
-
-      {/* 중앙 메인 영역 (코인목록)과 알람 전용 섹션 (알람 로그) */}
-      <div className="flex flex-1 p-4 space-x-4">
-        {/* 중앙 메인 영역 (코인목록) */}
-        <div className="flex-1 bg-white p-4 rounded-lg shadow-md flex flex-col">
-          <h2 className="text-xl font-semibold mb-3">코인목록</h2>
-
-          {/* 필터링 체크박스는 기존과 동일 */}
-          <div className="space-x-4 mb-4">
-            <label>
-              <input type="checkbox" checked={filters.all} onChange={() => handleFilterChange('all')} />{' '}
-              전체
-            </label>
-            <label>
-              <input type="checkbox" checked={filters.large} onChange={() => handleFilterChange('large')} />{' '}
-              대형(5조 이상)
-            </label>
-            <label>
-              <input type="checkbox" checked={filters.mid} onChange={() => handleFilterChange('mid')} />{' '}
-              중형(7000억 이상)
-            </label>
-            <label>
-              <input type="checkbox" checked={filters.small} onChange={() => handleFilterChange('small')} />{' '}
-              소형(500억 이상)
-            </label>
-          </div>
-
-          {/* 로딩/에러/코인 그리드/코인 정보 출력은 이제 liveCoins를 사용 */}
-          {(isLoading && liveCoins.length === 0) && <p className="text-center text-gray-600">코인 데이터를 불러오는 중입니다...</p>}
-          {isError && liveCoins.length === 0 && <p className="text-center text-red-500">에러: {error?.message || "알 수 없는 오류 발생"}</p>}
-
-          {/* liveCoins 상태를 사용하여 코인 목록 테이블 렌더링 */}
-          {(!isLoading || liveCoins.length > 0) && (
-            <>
-              {/* 코인 그리드: BTC, ETH 등 주요 코인 이름 박스 */}
-              <div className="grid grid-cols-5 gap-2 mb-4">
-                <div className="bg-gray-100 p-2 text-center rounded">BTC</div>
-                <div className="bg-gray-100 p-2 text-center rounded">ETH</div>
-                <div className="bg-gray-100 p-2 text-center rounded">XRP</div>
-                <div className="bg-gray-100 p-2 text-center rounded">ADA</div>
-                <div className="bg-gray-100 p-2 text-center rounded">DOGE</div>
-              </div>
-
-              {/* 코인 정보 출력 (테이블 형태) */}
-              <div className="flex-1 overflow-y-auto border rounded bg-gray-50">
-                {coinsToDisplay.length === 0 ? (
-                  <p className="text-gray-500 p-4">조건에 맞는 코인이 없습니다.</p>
-                ) : (
-                  <table className="min-w-full table-auto text-left text-sm">
-                    <thead className="bg-gray-200 sticky top-0">
-                      <tr>
-                        <th className="py-2 px-3 border-b">Symbol</th>
-                        <th className="py-2 px-3 border-b">현재가</th>
-                        <th className="py-2 px-3 border-b">24H 거래대금</th>
-                        <th className="py-2 px-3 border-b">1분봉 거래대금</th>
-                        <th className="py-2 px-3 border-b">15분봉 거래대금</th>
-                        <th className="py-2 px-3 border-b">1시간봉 거래대금</th>
-                        <th className="py-2 px-3 border-b">유지율</th>
-                        <th className="py-2 px-3 border-b">전일대비</th>
-                        <th className="py-2 px-3 border-b">시총</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {coinsToDisplay.map((coin) => (
-                        <tr key={coin.name || coin.id} className="border-b hover:bg-gray-100">
-                          <td className="py-2 px-3">{coin.symbol}</td>
-                          <td className="py-2 px-3">{coin.currentPrice != null ? coin.currentPrice.toLocaleString() : 'N/A'}</td>
-                          <td className="py-2 px-3">
-                            {coin.volume != null ?
-                              `${Math.floor(coin.volume / 1_000_000).toLocaleString()} 백만`
-                              : 'N/A'}
-                          </td>
-                          <td className="py-2 px-3">
-                            {coin.volume1m != null ?
-                              `${Math.floor(coin.volume1m / 1_000_000).toLocaleString()} 백만`
-                              : 'N/A'}
-                          </td>
-                          <td className="py-2 px-3">
-                            {coin.volume15m != null ?
-                              `${Math.floor(coin.volume15m / 1_000_000).toLocaleString()} 백만`
-                              : 'N/A'}
-                          </td>
-                          <td className="py-2 px-3">
-                            {coin.volume1h != null ?
-                              `${Math.floor(coin.volume1h / 1_000_000).toLocaleString()} 백만`
-                              : 'N/A'}
-                          </td>
-                          <td className="py-2 px-3">N/A</td>
-                          <td className="py-2 px-3">{coin.priceChange}</td>
-                          <td className="py-2 px-3">N/A</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </>
+    <div className="app-root">
+      {/* ======================= Header ======================= */}
+      <header className="app-header">
+        <h1>Coin Alarm Dashboard</h1>
+        <div className="header-controls">
+          <button onClick={() => {
+            // 브라우저 알림 권한 요청
+            if ("Notification" in window && Notification.permission !== "granted") {
+              Notification.requestPermission();
+            }
+            alert("알림/사운드는 브라우저 권한 허용 및 사용자 첫 클릭이 필요합니다.");
+          }}>
+            알림 권한 요청
+          </button>
+          {!soundEnabled ? (
+            <button onClick={enableSoundGesture}>사운드 허용 (클릭)</button>
+          ) : (
+            <button onClick={() => setSoundEnabled(false)}>사운드 끄기</button>
           )}
         </div>
+      </header>
 
-        {/* 알람 전용 섹션 (알람 로그): 이제 liveAlarmLogs 사용 */}
-        <div className="w-1/3 bg-white p-4 rounded-lg shadow-md flex flex-col">
-          <h2 className="text-xl font-semibold mb-3">알람 로그 (조건 발생 시 소리)</h2>
-          <div className="flex-1 overflow-y-auto border rounded p-2 space-y-1 bg-gray-50 text-sm">
-            {alarmLogs.length === 0 ? (
-              <p className="text-gray-500">조건에 맞는 알람이 없습니다.</p>
-            ) : (
-              alarmLogs.map((log, index) => (
-                <div key={index} className="text-red-600"> {/* 로그 자체가 문자열이므로 index를 key로 사용 */}
-                  {log}
-                </div>
-              ))
-            )}
-          </div>
+      {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
+      <div className="top-options-section">
+        <h2 className="section-title">코인 필터 & 보기 옵션</h2>
+        <div className="flex space-x-4 mb-4 filter-checkboxes">
+          {/* 시가총액 필터 체크박스 */}
+          <label>
+            <input type="checkbox" checked={filters.all} onChange={() => handleCoinFilterChange('all')} />{' '}
+            전체
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.large} onChange={() => handleCoinFilterChange('large')} />{' '}
+            대형(5조 이상)
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.mid} onChange={() => handleCoinFilterChange('mid')} />{' '}
+            중형(7천억 이상)
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.small} onChange={() => handleCoinFilterChange('small')} />{' '}
+            소형(5백억 이상)
+          </label>
         </div>
+
+        {/* '모든 종목 보기' 토글 버튼 */}
+        <button
+          onClick={() => setShowAllCoins(prev => !prev)}
+          className="toggle-all-coins-btn"
+        >
+          {showAllCoins ? "필터 적용 보기" : "모든 종목 보기"}
+        </button>
       </div>
 
-      {/* 하단 섹션은 기존과 동일합니다. */}
-      <div className="bg-white p-4 rounded-lg shadow-md m-4">
-        <h2 className="text-xl font-semibold mb-3 text-center">줄다리기 힘겨루기</h2>
-        <div className="flex items-center justify-center space-x-4 mb-2">
-          <span className="text-red-600 font-bold">{'<---- [ 팀 레드 ]'}</span>
-          <span className="text-yellow-600 font-bold">{'[ 팀 옐로우 ] ---->'}</span>
+      {/* ======================= 중앙 메인 영역 (코인목록 및 알람 로그) ======================= */}
+      <main className="main-content-area">
+        {/* 코인 목록 섹션 */}
+        <section className="coin-list-section">
+          <h2 className="section-title">실시간 코인 목록</h2>
+          <div className="coin-grid-summary">
+            {/* 이 부분은 현재 데이터에서는 구현이 어렵습니다. (BTC, ETH 등 특정 코인만 표시하는 부분)
+                나중에 liveCoins 객체에서 key값을 가지고 특정 코인들만 추출해서 보여줄 수 있습니다.
+            <div className="bg-gray-100 p-2 text-center rounded">BTC</div>
+            */}
+          </div>
+          <div className="coin-table-container">
+            <h2 className="section-title">코인 목록</h2> {/* 중복된 h2 태그 제거 또는 용도 명확화 */}
+            {displayedCoins.length === 0 ? (
+              <p className="no-coins-message">조건에 맞는 코인이 없습니다.</p>
+            ) : (
+              <table className="coin-table">
+                <thead>
+                  <tr>
+                    <th>심볼</th>
+                    <th>현재가</th>
+                    <th>24H 거래대금</th>
+                    <th>1분봉 거래대금</th>
+                    <th>15분봉 거래대금</th>
+                    <th>1시간봉 거래대금</th>
+                    <th>유지율</th>
+                    <th>전일대비</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedCoins.map((coin) => (
+                    <tr
+                      key={coin.symbol}
+                      className={favorites.includes(coin.symbol) ? "is-favorite" : ""}
+                      onClick={() => setSelectedCoinSymbol(coin.symbol)} // 클릭 시 디테일 패널 열기
+                    >
+                      <td>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(coin.symbol); }}
+                          className="favorite-toggle-btn"
+                          aria-label="즐겨찾기 토글"
+                          title={favorites.includes(coin.symbol) ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                        >
+                          {favorites.includes(coin.symbol) ? "★" : "☆"}
+                        </button>
+                        {coin.symbol}
+                      </td>
+                      <td>{formatMoney(coin.price)}원</td>
+                      <td>{formatMoney(coin.volume24h ?? 0)}원</td>
+                      <td>{formatMoney(coin.volume1m)}원</td>
+                      <td>{formatMoney(coin.volume15m ?? 0)}원</td>
+                      <td>{formatMoney(coin.volume1h ?? 0)}원</td>
+                      <td>{coin.maintenanceRate ? `${coin.maintenanceRate}%` : '-'}</td>
+                      <td>{coin.change24h ? `${coin.change24h}%` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+
+        {/* 상세(줄다리기) 및 알람 로그 섹션 */}
+        <aside className="detail-and-alerts-section">
+          {/* 상세(줄다리기) 패널 */}
+          <div className="detail-panel-container">
+            <h2 className="section-title">상세 (매수/매도 비율)</h2>
+            {selectedCoinSymbol ? (
+              <DetailPanel
+                symbol={selectedCoinSymbol}
+                coin={liveCoins[selectedCoinSymbol]}
+                onClose={() => setSelectedCoinSymbol(null)}
+              />
+            ) : (
+              <p className="no-coin-selected-message">
+                목록에서 코인을 클릭하면 상세 정보를 볼 수 있습니다.
+              </p>
+            )}
+          </div>
+
+          {/* 알람 로그 */}
+          <div className="alarm-log-container">
+            <h2 className="section-title">알람 로그 (1분봉 ≥ 3억)</h2>
+            <div className="alarm-list">
+              {alerts.length === 0 ? (
+                <p className="no-alarms-message">새로운 알람이 없습니다.</p>
+              ) : (
+                alerts.map(alarm => (
+                  <div key={alarm.id} className="alarm-item">
+                    <span className="alarm-time">[{new Date(alarm.ts).toLocaleTimeString()}]</span>
+                    <span className="alarm-message">{alarm.msg}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+  );
+}
+
+// ============================================================================
+// Detail Panel Component (매수/매도 비율 시각화)
+// ============================================================================
+type DetailPanelProps = {
+  symbol: string;
+  coin?: Coin; // 코인 데이터 (선택적: 없을 수도 있음)
+  onClose: () => void;
+};
+
+function DetailPanel({ symbol, coin, onClose }: DetailPanelProps) {
+  // 매수/매도 비율 계산
+  const buyVolume = coin?.buyVolume ?? 0;
+  const sellVolume = coin?.sellVolume ?? 0;
+  const totalVolume = buyVolume + sellVolume;
+
+  const buyPercent = totalVolume === 0 ? 0 : Math.round((buyVolume / totalVolume) * 100);
+  const sellPercent = 100 - buyPercent;
+
+  return (
+    <div className="detail-panel">
+      <div className="detail-panel-header">
+        <h3>{symbol} 상세 정보</h3>
+        <button onClick={onClose} className="close-detail-btn">닫기</button>
+      </div>
+      <div className="detail-panel-content">
+        <p>현재가: {formatMoney(coin?.price ?? 0)}원</p>
+        <p>1분봉 거래대금: {formatMoney(coin?.volume1m ?? 0)}원</p>
+
+        {/* 매수/매도 줄다리기 바 */}
+        <div className="tug-of-war-bar-container">
+          <div className="buy-bar" style={{ width: `${buyPercent}%` }}>
+            매수: {buyPercent}%
+          </div>
+          <div className="sell-bar" style={{ width: `${sellPercent}%` }}>
+            매도: {sellPercent}%
+          </div>
         </div>
-        <div className="w-full h-8 bg-gray-200 rounded-full flex overflow-hidden">
-          <div className="bg-red-600 h-full" style={{ width: '40%' }}></div>
-          <div className="bg-gray-500 h-full w-1"></div>
-          <div className="bg-yellow-500 h-full" style={{ width: '59%' }}></div>
+        <div className="tug-of-war-volumes">
+          <span>매수량: {formatMoney(buyVolume)}원</span>
+          <span>매도량: {formatMoney(sellVolume)}원</span>
+          <span>총량: {formatMoney(totalVolume)}원</span>
         </div>
       </div>
     </div>
