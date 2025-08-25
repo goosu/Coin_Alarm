@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
 import "./index.css"; // 스타일시트 import
 
+
 // ============================================================================
 // Types & Constants
 // ============================================================================
@@ -24,7 +25,8 @@ type Coin = {
 };
 
 // WebSocket URL. .env 파일에 REACT_APP_WS_URL=ws://localhost:8080/ws 등으로 설정하세요.
-const WS_URL = process.env.REACT_APP_WS_URL || "ws://localhost:8080/ws";
+//const WS_URL = process.env.REACT_APP_WS_URL || "ws://localhost:8080/ws"; //수정
+const WS_URL = import.meta.env?.VITE_WS_URL || "ws://localhost:8080/ws";
 const ALARM_THRESHOLD = 300_000_000; // 1분봉 거래대금 알람 임계값 (3억)
 const SOUND_SRC = "/alarm.mp3"; // 알람 소리 파일 경로. public 폴더에 넣어주세요.
 
@@ -230,6 +232,18 @@ export default function App() {
       console.error("Failed to save favorites to local storage:", error);
     }
   }, [favorites]);
+
+// 임시 더미 데이터 추가 (테스트용)
+useEffect(() => {
+  // WebSocket이 연결되지 않을 때 더미 데이터로 테스트
+  setTimeout(() => {
+    const dummyData = {
+      "BTC": { symbol: "BTC", price: 50000000, volume1m: 100000000 },
+      "ETH": { symbol: "ETH", price: 3000000, volume1m: 80000000 }
+    };
+    setLiveCoins(dummyData);
+  }, 2000);
+}, []);
 
   // 즐겨찾기 추가/제거 토글 함수 (서버와 동기화, Optimistic UI 업데이트 적용)
   const toggleFavorite = useCallback(async (symbol: string) => {
