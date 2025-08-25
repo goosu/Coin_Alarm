@@ -23,7 +23,7 @@ import org.springframework.scheduling.annotation.EnableScheduling; // <-- @Enabl
 public class AccessingDataJpaApplication { // 클래스 이름은 프로젝트에 맞게 변경될 수 있습니다.
 
 	// 로깅을 위한 Logger 객체를 생성합니다. 애플리케이션 실행 중 정보를 출력할 때 사용합니다.
-	private static final Logger log = LoggerFactory.getLogger(AccessingDataJpaApplication.class);
+	public static final Logger log = LoggerFactory.getLogger(AccessingDataJpaApplication.class);
 
 	// 애플리케이션의 진입점(Entry Point)인 main 메서드입니다.
 	public static void main(String[] args) {

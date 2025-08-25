@@ -14,6 +14,8 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'; // 개발�
 // 여기에 전역적인 쿼리 옵션 등을 설정할 수 있습니다.
 const queryClient = new QueryClient();
 
+console.log("★★★ main.tsx: React App mounting process started. ★★★");
+
 // ReactDOM.createRoot를 사용하여 React 애플리케이션을 렌더링합니다.
 // document.getElementById('root')!는 index.html에 있는 'root' ID를 가진 DOM 요소를 찾습니다.
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -28,3 +30,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+//저장소 test a
+

@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 public class UpbitWSC {
 
   private static final Logger log = LoggerFactory.getLogger(UpbitWSC.class);
+  private static final String UPBIT_WS_URL = "wss://api.upbit.com/websocket/v1"; //20250821 웹소캣주소 잘못됨
+
   private final OkHttpClient client;
   private WebSocket webSocket;
   private final ObjectMapper objectMapper;
@@ -39,7 +41,7 @@ public class UpbitWSC {
     }
 
     Request request = new Request.Builder()
-            .url("wss://api.upbit.com/websocket")
+            .url(UPBIT_WS_URL) //("wss://api.upbit.com/websocket/v1") 20250821잘못된부분 주석처리
             .build();
 
     webSocket = client.newWebSocket(request, new WebSocketListener() {

@@ -1,12 +1,385 @@
+/* frontend/src/index.css */
+
+/* Tailwind CSS 지시어: Tailwind의 기본 스타일, 컴포넌트, 유틸리티를 프로젝트에 주입합니다. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 별 반짝임 */
-@keyframes pulse-fast {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.08); }
+/* ============================================================================== */
+/* Custom Base Styles (기본 HTML 요소 및 프로젝트 전반적인 스타일에 영향) */
+/* ============================================================================== */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+  background-color: #f0f2f5; /* 밝은 회색 배경 */
+  color: #333;
+  line-height: 1.6;
 }
-.animate-pulse-fast {
-  animation: pulse-fast 1s ease-in-out infinite;
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ============================================================================== */
+/* Header Styles */
+/* ============================================================================== */
+.app-header {
+  background-color: #001529; /* 다크 네이비 */
+  color: #fff;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header-controls button {
+  background-color: #1890ff; /* 파란색 버튼 */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 15px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.header-controls button:hover {
+  background-color: #40a9ff; /* 호버 시 밝게 */
+}
+
+/* ============================================================================== */
+/* Section Titles */
+/* ============================================================================== */
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eee;
+}
+
+/* ============================================================================== */
+/* Top Options Section (Filters & Toggles) */
+/* ============================================================================== */
+.top-options-section {
+  background-color: #fff;
+  margin: 15px;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.filter-checkboxes label {
+  font-size: 0.95rem;
+  margin-right: 15px;
+  cursor: pointer;
+}
+
+.filter-checkboxes input[type="checkbox"] {
+  margin-right: 5px;
+  cursor: pointer;
+}
+
+.toggle-all-coins-btn {
+  background-color: #6c757d; /* 회색 버튼 */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 15px;
+  margin-top: 15px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.toggle-all-coins-btn:hover {
+  background-color: #5a6268; /* 호버 시 어둡게 */
+}
+
+/* ============================================================================== */
+/* Main Content Area (Coin List & Detail/Alerts) */
+/* ============================================================================== */
+.main-content-area {
+  display: flex;
+  flex: 1; /* 남은 공간 모두 사용 */
+  padding: 15px;
+  gap: 15px; /* 섹션 간 간격 */
+}
+
+/* Coin List Section */
+.coin-list-section {
+  flex: 3; /* 더 넓은 공간 할당 */
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.coin-grid-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.coin-grid-summary > div {
+  background-color: #e9ecef;
+  padding: 10px;
+  text-align: center;
+  border-radius: 5px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.coin-table-container {
+  flex: 1; /* 테이블이 남은 공간 채우도록 */
+  overflow-y: auto; /* 내용이 많으면 스크롤 */
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+}
+
+.coin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.coin-table thead {
+  background-color: #f8f9fa;
+  position: sticky; /* 헤더 고정 */
+  top: 0;
+  z-index: 1;
+}
+
+.coin-table th, .coin-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #dee2e6;
+  text-align: left;
+}
+
+.coin-table tbody tr:hover {
+  background-color: #f1f3f5; /* 호버 효과 */
+  cursor: pointer;
+}
+
+.coin-table tbody tr.is-favorite {
+  background-color: #fffacd; /* 즐겨찾기 배경색 (lightgoldenrodyellow) */
+}
+
+.no-coins-message {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+}
+
+/* Favorite Toggle Button (Star) */
+.favorite-toggle-btn {
+  background: none;
+  border: none;
+  color: #ffc107; /* 노란색 별 */
+  font-size: 1.2rem;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.favorite-toggle-btn:hover {
+  transform: scale(1.1);
+}
+
+/* ============================================================================== */
+/* Detail & Alerts Section */
+/* ============================================================================== */
+.detail-and-alerts-section {
+  flex: 1.5; /* 코인 목록보다 좁게 */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.detail-panel-container, .alarm-log-container {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Detail Panel Styles */
+.detail-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.detail-panel-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.close-detail-btn {
+  background-color: #dc3545; /* 빨간색 버튼 */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s ease;
+}
+
+.close-detail-btn:hover {
+  background-color: #c82333;
+}
+
+.detail-panel-content p {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+/* Buy/Sell Tug-of-War Bar */
+.tug-of-war-bar-container {
+  display: flex;
+  width: 100%;
+  height: 25px;
+  border-radius: 5px;
+  overflow: hidden;
+  background-color: #e9ecef;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.buy-bar, .sell-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.buy-bar {
+  background-color: #28a745; /* 녹색 (매수) */
+}
+
+.sell-bar {
+  background-color: #dc3545; /* 빨간색 (매도) */
+}
+
+.tug-of-war-volumes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.no-coin-selected-message {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Alarm Log Styles */
+.alarm-log-container {
+  overflow-y: hidden; /* 컨테이너 자체 스크롤 방지 */
+}
+
+.alarm-list {
+  max-height: 300px; /* 고정 높이, 넘치면 스크롤 */
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  padding: 10px;
+  background-color: #fdfdfd;
+}
+
+.alarm-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e9ecef;
+}
+
+.alarm-item:last-child {
+  border-bottom: none;
+}
+
+.alarm-time {
+  font-size: 0.8rem;
+  color: #888;
+  margin-right: 10px;
+  min-width: 70px;
+}
+
+.alarm-message {
+  font-size: 0.9rem;
+  color: #333;
+  word-break: break-word; /* 긴 메시지 줄바꿈 */
+}
+
+.no-alarms-message {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* ============================================================================== */
+/* Responsive Design (미디어 쿼리) */
+/* ============================================================================== */
+@media (max-width: 992px) {
+  .main-content-area {
+    flex-direction: column; /* 세로 배열 */
+  }
+
+  .coin-list-section, .detail-and-alerts-section {
+    flex: none; /* 유연성 제거 */
+    width: 100%; /* 전체 너비 */
+  }
+
+  .coin-table-container {
+    overflow-x: auto; /* 모바일에서 테이블 가로 스크롤 가능하게 */
+  }
+
+  .coin-table {
+    min-width: 600px; /* 테이블 최소 너비 설정 */
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+  .header-controls button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .top-options-section, .main-content-area {
+    margin: 10px;
+    padding: 15px;
+  }
+  .filter-checkboxes {
+    flex-wrap: wrap; /* 체크박스 줄바꿈 */
+  }
 }

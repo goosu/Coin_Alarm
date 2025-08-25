@@ -7,6 +7,8 @@ import coinalarm.Coin_Alarm.upbit.UpbitWSC;
 import coinalarm.Coin_Alarm.upbit.UpbitCandleResponse;
 
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -52,6 +54,9 @@ public class MarketDataService {
   private final ConcurrentMap<String, Instant> lastAlarmTime = new ConcurrentHashMap<>();
   private final long ALARM_COOLDOWN_SECONDS = 3L;
 
+  //2025821 add 로그관리위함
+  private static final Logger log = LoggerFactory.getLogger(coinalarm.Coin_Alarm.market.MarketDataService.class);
+
   // 즐겨찾기 (메모리 기반)
   private final Set<String> favoriteMarkets = ConcurrentHashMap.newKeySet();
 
@@ -81,6 +86,8 @@ public class MarketDataService {
     }
 
     // WebSocket 연결 및 콜백 등록 (실시간 체결 수신)
+    log.info("find error connect "); //2025821 에러문제
+
     upbitWSC.connect(allMarketCodesCache);
     upbitWSC.setOnTradeMessageReceived(ticker -> {
       // normalize market key
