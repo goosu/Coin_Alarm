@@ -268,7 +268,8 @@ public class MarketDataService {
     all.addAll(favorites);
     all.addAll(filteredNormals);
 
-    messagingTemplate.convertAndSend("/topic/market-data", all);
+    //messagingTemplate.convertAndSend("/topic/market-data", all);
+    simpMessagingTemplate.convertAndSend("/marketData", marketData); //20250825 ADD
     messagingTemplate.convertAndSend("/topic/buy-sell-ratio", buySellRatios);
   }
 
