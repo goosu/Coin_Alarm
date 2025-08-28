@@ -1,34 +1,47 @@
-// frontend/src/App.tsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
 import "./index.css"; // 스타일시트 import
+
+// *** [신규] STOMP / SockJS 관련 임포트 (이전 순수 WebSocket 대신 사용) ***
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 
 // ============================================================================
 // Types & Constants
 // ============================================================================
 
-// 코인 데이터 타입 정의 (백엔드에서 오는 데이터 포맷에 맞춤)
+// 코인 데이터 타입 정의 (백엔드 CoinResponseDto와 App.tsx UI/로직 매핑에 맞춰 수정됨)
 type Coin = {
   symbol: string;
   price: number;
-  marketCap?: number; // 시가총액 (선택적)
-  volume1m: number; // 1분봉 거래대금 (필수)
-  volume24h?: number; // 24시간 거래대금 (선택적)
-  volume15m?: number; // 15분봉 거래대금 (선택적)
-  volume1h?: number; // 1시간봉 거래대금 (선택적)
-  buyVolume?: number; // 매수 거래대금 (줄다리기용)
-  sellVolume?: number; // 매도 거래대금 (줄다리기용)
-  maintenanceRate?: number; // 유지율 (선택적)
-  change24h?: number; // 전일대비 (선택적)
-  timestamp?: number; // 데이터 수신 시간
+  marketCap?: number; // 시가총액 (선택적, 현재 백엔드에서 0으로 전달될 수 있음)
+
+  // *** [신규] CoinResponseDto에서 오는 필드들에 맞춤 (추가됨) ***
+  volume1m: number; // 1분봉 거래대금
+  volume5m: number; // 5분봉 거래대금
+  volume15m?: number; // 15분봉 거래대금
+  volume1h?: number; // 1시간봉 거래대금
+
+  volume24h: number; // 24시간 누적 거래대금 (CoinResponseDto의 accTradePrice24h와 매핑)
+
+  buyVolume: number; // 매수 거래대금 (줄다리기용, 현재 백엔드에서 0으로 전달)
+  sellVolume: number; // 매도 거래대금 (줄다리기용, 현재 백엔드에서 0으로 전달)
+
+  change24h: number; // 전일대비 (필수, 백엔드에서 %로 계산되어 옴)
+  maintenanceRate?: number; // 유지율 (선택적, 현재 백엔드에서 0으로 전달)
+  timestamp?: number; // 데이터 수신 시간 (CoinResponseDto에 timestamp 필드가 없다면 현재 시간 사용)
 };
 
-// WebSocket URL. .env 파일에 REACT_APP_WS_URL=ws://localhost:8080/ws 등으로 설정하세요.
-//const WS_URL = process.env.REACT_APP_WS_URL || "ws://localhost:8080/ws"; //수정
+
+// *** [수정] 환경 변수 접근 방식 (Vite에서 사용하는 import.meta.env 방식) ***
 const WS_URL = import.meta.env?.VITE_WS_URL || "ws://localhost:8080/ws";
+
 const ALARM_THRESHOLD = 300_000_000; // 1분봉 거래대금 알람 임계값 (3억)
 const SOUND_SRC = "/alarm.mp3"; // 알람 소리 파일 경로. public 폴더에 넣어주세요.
+
+// *** [신규] 알람 쿨타임 상수 (Refactor: useCallback/useEffect 내에서 사용될 상수) ***
+const ALARM_COOLDOWN_SECONDS = 3;
 
 // ============================================================================
 // Custom Hooks & Utilities
@@ -82,78 +95,35 @@ export default function App() {
   });
   const [showAllCoins, setShowAllCoins] = useLocalStorage<boolean>("showAllCoins", false); // '모든 종목 보기' 토글
 
-  const wsRef = useRef<WebSocket | null>(null); // WebSocket 인스턴스 참조
+  // *** [기존] WebSocket 인스턴스 참조 (전체 주석 처리) ***
+  // const wsRef = useRef<WebSocket | null>(null);
+  // *** [신규] STOMP 클라이언트 인스턴스 참조 ***
+  const stompClientRef = useRef<Client | null>(null);
+
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null); // Audio 객체 참조
-  const lastAlertTimestamps = useRef<Record<string, number>>({}); // 심볼별 마지막 알람 시간 (쿨타임용)
+  // *** [수정] lastAlarmTimestamps useRef 초기화 및 사용 방식 (ReferenceError 해결) ***
+  const lastAlarmTimestamps = useRef<Record<string, number>>({}); // 심볼별 마지막 알람 시간 (쿨타임용)
 
   // ============================================================================
-  // WebSocket Connection & Data Handling
+  // WebSocket Connection & Data Handling (STOMP 버전 - 크게 수정됨)
   // ============================================================================
 
-  // WebSocket 연결 설정 및 메시지 수신 처리
   useEffect(() => {
-    console.log("App: WebSocket effect running, attempting to connect to:", WS_URL); // WebSocket 연결 시도 로그
+    console.log("App: WebSocket effect running, attempting to connect to:", WS_URL);
 
+    // *** [기존] 순수 WebSocket 연결 로직 (전체 주석 처리 시작) ***
+    /*
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => console.log("WebSocket connected:", WS_URL);
-
     ws.onmessage = (event) => {
       try {
-        // 백엔드에서 받은 데이터는 JSON 형태라고 가정
+        // 기존 onMessage 로직... (이 부분은 STOMP 클라이언트 로직으로 완전히 대체됩니다)
         const receivedData = JSON.parse(event.data);
-        // 데이터가 단일 객체일 수도, 여러 코인 정보가 담긴 배열일 수도 있음
-        const items: any[] = Array.isArray(receivedData) ? receivedData : [receivedData];
-
         let hasNewData = false;
-        // console.log("WS received items count:", items.length); // 받은 데이터 개수 로그
-        const updatedCoins = { ...liveCoins }; // liveCoins는 이전 상태 기반이므로 deps에 넣지 않음.
-
-        for (const item of items) {
-          if (!item || !item.symbol) {
-            // console.warn("Received invalid WS item:", item); // 유효하지 않은 항목 경고
-            continue; // 유효하지 않은 데이터는 건너뜀
-          }
-
-          const symbol = item.symbol;
-          const prevCoin = updatedCoins[symbol] || { symbol, price: 0, volume1m: 0 }; // 이전 데이터 또는 기본값
-
-          // 새 코인 데이터 객체 생성
-          const newCoin: Coin = {
-            symbol: symbol,
-            price: Number(item.price ?? prevCoin.price),
-            marketCap: Number(item.marketCap ?? prevCoin.marketCap),
-            volume1m: Number(item.volume1m ?? prevCoin.volume1m),
-            volume24h: Number(item.volume24h ?? prevCoin.volume24h),
-            volume15m: Number(item.volume15m ?? prevCoin.volume15m),
-            volume1h: Number(item.volume1h ?? prevCoin.volume1h),
-            buyVolume: Number(item.buyVolume ?? prevCoin.buyVolume ?? 0),
-            sellVolume: Number(item.sellVolume ?? prevCoin.sellVolume ?? 0),
-            maintenanceRate: Number(item.maintenanceRate ?? prevCoin.maintenanceRate),
-            change24h: Number(item.change24h ?? prevCoin.change24h),
-            timestamp: Number(item.timestamp ?? Date.now()),
-          };
-
-          updatedCoins[symbol] = newCoin; // 코인 데이터 업데이트
-          hasNewData = true;
-
-          // 알람 조건 검사 (1분봉 거래대금 3억 이상)
-          const now = Date.now();
-          const lastAlertTime = lastAlertTimestamps.current[symbol] ?? 0;
-          if (newCoin.volume1m >= ALARM_THRESHOLD && (now - lastAlertTime) > 3000) { // 3초 쿨타임
-            lastAlertTimestamps.current[symbol] = now; // 마지막 알람 시간 업데이트
-            pushAlarm(
-              `${symbol} 1분 체결대금 ${formatMoney(newCoin.volume1m)}원 도달!`,
-              symbol,
-              now
-            );
-          }
-        }
-
-        if (hasNewData) {
-          setLiveCoins(updatedCoins); // 상태 업데이트
-        }
+        const updatedCoins = { ...liveCoins };
+        // ...
       } catch (error) {
         console.error("WebSocket message parsing error:", error, event.data);
       }
@@ -161,34 +131,163 @@ export default function App() {
 
     ws.onclose = () => {
       console.log("WebSocket disconnected. Attempting to reconnect in 3s...");
-      // 재연결 로직: 현재 wsRef가 이 인스턴스를 참조하고 있다면 재연결 시도
-      // (이전에 setTimeout으로 감싸져 있었는데, 즉시 시도 로직으로 변경. 필요 시 setTimeout 다시 추가)
       if (wsRef.current === ws) {
-        wsRef.current = null; // 이전 참조 제거
-        // 여기서는 간단히 useEffect가 마운트될 때만 연결 시도하므로, 페이지 새로고침 등으로 재시작 권장.
-        // 또는 외부에서 reconnectionManager 같은 모듈로 재연결 로직 구현 권장.
+        wsRef.current = null;
+        // setTimeout 로직...
       }
-      setTimeout(() => { // 3초 후 재연결 시도 로직 다시 추가. 이펙트가 한 번 더 실행되도록 트리거 (wsRef.current가 null이므로 새 WS 생성)
-        if (!wsRef.current) { // 현재 WS가 없으면 다시 연결 시도
-          console.log("App: Retrying WebSocket connection...");
-          const retryWs = new WebSocket(WS_URL);
-          wsRef.current = retryWs;
-          // 재연결 로직 내부에서 다시 onopen, onmessage 등 설정 (또는 이펙트 자체 재실행 유도)
-          // 하지만 지금은 useEffect의 클린업이 ws를 닫고 wsRef를 null로 만든 후 다시 useEffect가 트리거되는 방식으로 동작함
-        }
-      }, 3000);
     };
 
     ws.onerror = (error) => console.error("WebSocket error:", error);
 
     // 컴포넌트 언마운트 시 WebSocket 연결 종료
     return () => {
-      console.log("WebSocket cleanup: closing connection."); // 클린업 로그
+      console.log("WebSocket cleanup: closing connection.");
       ws.close();
       wsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 마운트 시 한 번만 실행, WS_URL 변경될 때 재실행
+    */
+    // *** [기존] 순수 WebSocket 연결 로직 (전체 주석 처리 끝) ***
+
+
+    // *** [신규] STOMP 클라이언트 생성 및 설정 시작 ***
+    const client = new Client({
+      // SockJS를 사용하여 WebSocket 연결을 시도합니다.
+      // Spring Boot 백엔드에 MarketDataConfig.java의 addEndpoint().withSockJS()가 설정되어 있어야 합니다.
+      webSocketFactory: () => {
+        // WS_URL (예: ws://localhost:8080/ws)에서 'ws'를 'http'로 변경하여 SockJS URL 생성
+        const sockJsUrl = WS_URL.replace(/^ws/, 'http');
+        console.log("App: Connecting to SockJS URL:", sockJsUrl);
+        return new SockJS(sockJsUrl); // SockJS 클라이언트 생성
+      },
+      reconnectDelay: 5000, // 재연결 딜레이 5초
+      heartbeatIncoming: 4000, // 서버에서 하트비트 메시지 대기 시간 (ms)
+      heartbeatOutgoing: 4000, // 서버로 하트비트 메시지 전송 시간 (ms)
+
+      onConnect: (frame) => {
+        console.log('🚀 STOMP Connected to broker:', frame); // 연결 성공 로그
+
+        // '/topic/marketData' 토픽을 구독하여 메시지를 받습니다.
+        // 백엔드 MarketDataService에서 List<CoinResponseDto>를 JSON 배열 형태로 보냄
+        client.subscribe('/topic/marketData', (message) => {
+          try {
+            console.log("🚀 Received raw STOMP message:", message.body); // 메시지 본문 로그
+            const receivedData = JSON.parse(message.body); // JSON 파싱
+
+            let coinsArray: Coin[] = [];
+
+            // *** [수정] 백엔드에서 보내는 Map<String, CoinResponseDto> 형태 (즉, JS에서 객체 {})를 처리하는 로직 ***
+            if (typeof receivedData === 'object' && receivedData !== null && !Array.isArray(receivedData)) {
+                // receivedData는 이제 { "KRW-BTC": {...}, "KRW-ETH": {...} } 형태의 객체입니다.
+                // 이 객체의 값(value)들만 뽑아서 배열로 만듭니다.
+                coinsArray = Object.values(receivedData).map((dto: any) => {
+                    return {
+                        symbol: dto.symbol, // 이 dto.symbol이 'KRW-BTC'와 같은 심볼 값입니다.
+                        price: Number(dto.price ?? 0),
+                        volume1m: Number(dto.volume1m ?? 0), // CoinResponseDto의 volume1m 필드
+                        volume5m: Number(dto.volume5m ?? 0), // CoinResponseDto의 volume5m 필드
+                        volume15m: Number(dto.volume15m ?? 0),
+                        volume1h: Number(dto.volume1h ?? 0),
+
+                        // CoinResponseDto에서 accTradePrice24h는 String/Double으로 올 수 있음
+                        // 이를 App.tsx Coin 타입의 volume24h로 매핑
+                        volume24h: Number(dto.accTradePrice24h ?? 0),
+
+                        change24h: Number(dto.change24h ?? 0), // 백엔드에서 %로 계산되어 옴 (소수점 유지)
+
+                        buyVolume: Number(dto.buyVolume ?? 0), // 현재 백엔드에서 0으로 옴
+                        sellVolume: Number(dto.sellVolume ?? 0), // 현재 백엔드에서 0으로 옴
+
+                        // 현재 CoinResponseDto에 없는 필드들은 0 또는 기본값으로 초기화
+                        marketCap: 0,
+                        maintenanceRate: 0,
+                        // CoinResponseDto에 timestamp 필드가 있다면 dto.timestamp 사용, 없으면 현재 시간
+                        timestamp: dto.timestamp ? Number(dto.timestamp) : Date.now(),
+                    };
+                });
+            }
+            // *** [기존] 백엔드에서 List<CoinResponseDto> (JSON 배열)를 보낼 경우의 처리 로직 (주석 처리) ***
+            // else if (Array.isArray(receivedData)) {
+            //     coinsArray = receivedData.map((dto: any) => { /* ... 기존 배열 매핑 로직 ... */ return {}; });
+            // }
+            else { // 객체도 아니고 배열도 아닌 예상치 못한 형식인 경우
+                console.error("❌ Received WebSocket message is neither an object nor an array (unexpected format):", receivedData);
+                return; // 처리하지 않고 종료
+            }
+
+            let hasNewData = false;
+            const updatedCoins = { ...liveCoins }; // 이전 상태 복사
+
+            coinsArray.forEach(coin => {
+                updatedCoins[coin.symbol] = coin; // symbol을 키로 사용하여 맵에 저장
+                hasNewData = true;
+
+                // 알람 조건 검사 (ReferenceError: lastAlarmTimestamps 해결 포함)
+                const now = Date.now();
+                // *** [수정] lastAlarmTimestamps 사용 방식 (ReferenceError 해결) ***
+                // useRef의 .current 속성을 통해 직접 접근 및 업데이트
+                const lastAlertTimeForSymbol = lastAlarmTimestamps.current[coin.symbol] || 0;
+                if (coin.volume1m >= ALARM_THRESHOLD && (now - lastAlertTimeForSymbol) > (ALARM_COOLDOWN_SECONDS * 1000)) {
+                  lastAlarmTimestamps.current[coin.symbol] = now; // 레퍼런스 업데이트
+                  pushAlarm(
+                    `${coin.symbol} 1분 체결대금 ${formatMoney(coin.volume1m)}원 도달!`,
+                    coin.symbol,
+                    now
+                  );
+                }
+            });
+
+            if (hasNewData) {
+              setLiveCoins(updatedCoins);
+              console.log("🎉 liveCoins updated, total:", Object.keys(updatedCoins).length, "coins.");
+            }
+
+          } catch (error) {
+            console.error("❌ STOMP message parsing or processing error:", error, "Raw body:", message.body);
+          }
+        });
+
+        // '/topic/buy-sell-ratio' 토픽 구독 (MarketDataService에 해당 토픽 발행 로직이 있다면 활성화)
+        // MarketDataService의 pushLatestMarketDataToClients 메소드 하단을 확인하여 해당 토픽을 발행하는지 확인하세요.
+        client.subscribe('/topic/buy-sell-ratio', (message) => {
+           try {
+             const ratios = JSON.parse(message.body);
+             console.log("Received buy-sell ratios:", ratios);
+             // TODO: 이 데이터를 UI (예: 디테일 패널의 매수/매도 비율)에 반영하는 로직 추가
+             // 이 로직은 `liveCoins` 상태를 업데이트할 때 buyRatio/sellRatio를 함께 업데이트하는 방식으로 구현할 수 있습니다.
+           } catch (error) {
+             console.error("Error parsing buy-sell ratio message:", error, "Raw body:", message.body);
+           }
+         });
+      },
+
+      onStompError: (frame) => {
+        // STOMP 프로토콜 에러 발생 시 (연결 에러, 메시지 에러 등)
+        console.error('❌ STOMP Broker reported error:', frame.headers['message'], 'Details:', frame.body);
+      },
+
+      onWebSocketError: (event) => {
+        // 하위 WebSocket 계층에서 에러 발생 시
+        console.error('❌ WebSocket error at STOMP client layer:', event);
+      },
+
+      onDisconnect: () => {
+        console.warn('⚠️ STOMP Disconnected from broker.');
+      },
+    });
+
+    // STOMP 클라이언트 활성화
+    client.activate();
+    stompClientRef.current = client; // Ref에 클라이언트 인스턴스 저장
+
+    // 컴포넌트 언마운트 시 STOMP 클라이언트 비활성화
+    return () => {
+      console.log("STOMP client cleanup: deactivating connection.");
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+        stompClientRef.current = null;
+      }
+    };
+  }, []); // 마운트 시 한 번만 실행
 
 
   // ============================================================================
@@ -198,19 +297,18 @@ export default function App() {
   // 컴포넌트 마운트 시 서버에서 즐겨찾기 목록 로드
   useEffect(() => {
     let componentMounted = true;
-    console.log("App: Favorites effect running."); // 즐겨찾기 로드 시도 로그
+    console.log("App: Favorites effect running.");
     (async () => {
       try {
         const serverFavorites = await fetchFavorites();
         if (componentMounted) setFavorites(serverFavorites);
       } catch (error) {
         console.warn("Failed to load favorites from server. Falling back to local storage.", error);
-        // 서버 로드 실패 시, 로컬 스토리지에 저장된 즐겨찾기 목록 사용
         try {
           const localStoredFavorites = localStorage.getItem("favorites");
           if (localStoredFavorites) {
             setFavorites(JSON.parse(localStoredFavorites));
-            console.log("App: Favorites loaded from local storage."); // 로컬 스토리지 로드 로그
+            console.log("App: Favorites loaded from local storage.");
           }
         } catch (localError) {
           console.error("Failed to parse local storage favorites:", localError);
@@ -219,13 +317,12 @@ export default function App() {
     })();
     return () => {
       componentMounted = false;
-      console.log("App: Favorites effect cleanup."); // 즐겨찾기 이펙트 클린업
+      console.log("App: Favorites effect cleanup.");
     };
   }, []);
 
   // 즐겨찾기 목록이 변경될 때마다 로컬 스토리지에 저장
   useEffect(() => {
-    // console.log("App: Favorites changed, saving to local storage."); // 즐겨찾기 저장 로그
     try {
       localStorage.setItem("favorites", JSON.stringify(favorites));
     } catch (error) {
@@ -233,22 +330,10 @@ export default function App() {
     }
   }, [favorites]);
 
-// 임시 더미 데이터 추가 (테스트용)
-useEffect(() => {
-  // WebSocket이 연결되지 않을 때 더미 데이터로 테스트
-  setTimeout(() => {
-    const dummyData = {
-      "BTC": { symbol: "BTC", price: 50000000, volume1m: 100000000 },
-      "ETH": { symbol: "ETH", price: 3000000, volume1m: 80000000 }
-    };
-    setLiveCoins(dummyData);
-  }, 2000);
-}, []);
-
   // 즐겨찾기 추가/제거 토글 함수 (서버와 동기화, Optimistic UI 업데이트 적용)
   const toggleFavorite = useCallback(async (symbol: string) => {
     const isCurrentlyFavorite = favorites.includes(symbol);
-    console.log(`App: Toggling favorite for ${symbol}. Current: ${isCurrentlyFavorite}`); // 즐겨찾기 토글 로그
+    console.log(`App: Toggling favorite for ${symbol}. Current: ${isCurrentlyFavorite}`);
 
     // Optimistic Update: UI를 먼저 업데이트하고 서버 요청
     setFavorites(prev => isCurrentlyFavorite ? prev.filter(s => s !== symbol) : [symbol, ...prev]);
@@ -274,7 +359,7 @@ useEffect(() => {
         return Array.from(currentSet);
       });
     }
-  }, [favorites]); // favorites 배열이 변경될 때만 함수 재생성
+  }, [favorites]);
 
   // ============================================================================
   // Alarm & Notification Logic
@@ -284,12 +369,12 @@ useEffect(() => {
   const pushAlarm = useCallback((message: string, symbol: string, timestamp: number) => {
     const alarmId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; // 고유 ID 생성
     setAlerts(prevAlerts => [{ id: alarmId, symbol, msg: message, ts: timestamp }, ...prevAlerts].slice(0, 100)); // 최대 100개 알람 유지
-    console.log("App: New alarm triggered:", message); // 알람 로그
+    console.log("App: New alarm triggered:", message);
 
     // 브라우저 알림 (권한 필요)
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("코인 알람", { body: message, icon: "/coin-icon.png" }); // 알림 아이콘 경로
-      console.log("App: Browser notification shown."); // 브라우저 알림 표시 로그
+      new Notification("코인 알람", { body: message, icon: "/coin-icon.png" });
+      console.log("App: Browser notification shown.");
     }
 
     // 알람 사운드 재생
@@ -302,7 +387,7 @@ useEffect(() => {
   // 사운드 활성화 (사용자 제스처 필요)
   const enableSoundGesture = useCallback(() => {
     setSoundEnabled(true);
-    console.log("App: Sound enabled via user gesture."); // 사운드 활성화 로그
+    console.log("App: Sound enabled via user gesture.");
     if (alarmAudioRef.current) {
       // 사용자 제스처를 통해 오디오 재생 컨텍스트 활성화 시도
       alarmAudioRef.current.play().then(() => {
@@ -329,7 +414,7 @@ useEffect(() => {
 
   // 코인 목록 필터 변경 핸들러
   const handleCoinFilterChange = useCallback((key: 'all' | 'large' | 'mid' | 'small') => {
-    console.log("App: Filtering coins by:", key); // 필터 변경 로그
+    console.log("App: Filtering coins by:", key);
     setFilters(prev => {
       if (key === 'all') { // '전체' 선택 시 나머지 필터 해제
         return { all: true, large: false, mid: false, small: false };
@@ -345,10 +430,10 @@ useEffect(() => {
 
   // 화면에 표시될 코인 목록 계산 (필터링 및 정렬 적용)
   const displayedCoins = React.useMemo(() => {
-    console.log("App: Recalculating displayed coins."); // 표시 코인 계산 로그
+    console.log("App: Recalculating displayed coins.");
     const allCoins = Object.values(liveCoins);
 
-    // 1차 필터: 시가총액 필터 적용
+    // 1차 필터: 시가총액 필터 적용 (현재 백엔드에서 marketCap을 0으로 줌. 필터링 안 될 수 있음)
     let filtered = allCoins.filter(passesMarketCapFilter);
 
     // 2차 필터: '모든 종목 보기' 토글이 꺼져있으면 즐겨찾기 또는 1분 거래대금 3억 이상만 표시
@@ -363,8 +448,8 @@ useEffect(() => {
       const aIsFavorite = favorites.includes(a.symbol);
       const bIsFavorite = favorites.includes(b.symbol);
 
-      if (aIsFavorite && !bIsFavorite) return -1; // a가 즐겨찾기, b가 아니면 a 먼저
-      if (!aIsFavorite && bIsFavorite) return 1;  // b가 즐겨찾기, a가 아니면 b 먼저
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
 
       return b.volume1m - a.volume1m; // 1분봉 거래대금 내림차순
     });
@@ -394,6 +479,8 @@ useEffect(() => {
           ) : (
             <button onClick={() => setSoundEnabled(false)}>사운드 끄기</button>
           )}
+          {/* 음원 재생을 위한 Audio 태그. display: none으로 숨겨둠. */}
+          <audio ref={alarmAudioRef} src={SOUND_SRC} preload="auto" style={{ display: 'none' }} />
         </div>
       </header>
 
@@ -441,7 +528,6 @@ useEffect(() => {
             */}
           </div>
           <div className="coin-table-container">
-            <h2 className="section-title">코인 목록</h2> {/* 중복된 h2 태그 제거 또는 용도 명확화 */}
             {displayedCoins.length === 0 ? (
               <p className="no-coins-message">조건에 맞는 코인이 없습니다.</p>
             ) : (
@@ -452,10 +538,10 @@ useEffect(() => {
                     <th>현재가</th>
                     <th>24H 거래대금</th>
                     <th>1분봉 거래대금</th>
+                    <th>5분봉 거래대금</th> {/* 새로 추가 */}
                     <th>15분봉 거래대금</th>
                     <th>1시간봉 거래대금</th>
-                    <th>유지율</th>
-                    <th>전일대비</th>
+                    <th>전일대비</th> {/* 유지율, 전일대비 통합 */}
                   </tr>
                 </thead>
                 <tbody>
@@ -479,10 +565,10 @@ useEffect(() => {
                       <td>{formatMoney(coin.price)}원</td>
                       <td>{formatMoney(coin.volume24h ?? 0)}원</td>
                       <td>{formatMoney(coin.volume1m)}원</td>
+                      <td>{formatMoney(coin.volume5m ?? 0)}원</td> {/* 새로 추가 */}
                       <td>{formatMoney(coin.volume15m ?? 0)}원</td>
                       <td>{formatMoney(coin.volume1h ?? 0)}원</td>
-                      <td>{coin.maintenanceRate ? `${coin.maintenanceRate}%` : '-'}</td>
-                      <td>{coin.change24h ? `${coin.change24h}%` : '-'}</td>
+                      <td>{coin.change24h ? `${coin.change24h.toFixed(2)}%` : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -542,6 +628,7 @@ type DetailPanelProps = {
 
 function DetailPanel({ symbol, coin, onClose }: DetailPanelProps) {
   // 매수/매도 비율 계산
+  // 매수/매도 거래대금은 현재 백엔드에서 0으로 오기 때문에 바는 제대로 그려지지 않을 수 있음
   const buyVolume = coin?.buyVolume ?? 0;
   const sellVolume = coin?.sellVolume ?? 0;
   const totalVolume = buyVolume + sellVolume;

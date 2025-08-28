@@ -47,6 +47,7 @@ public class UpbitTickerResponse {
   @JsonProperty("tms")
   private Long tms;
 
+
   // 안전화된 getter들
   public Double getTradePriceNormalized() {
     return tradePrice != null ? tradePrice : tradePriceRest;
@@ -63,4 +64,11 @@ public class UpbitTickerResponse {
   }
 
   public String getAskBid() { return askBid; }
+
+  @JsonProperty("signed_change_rate")
+  private Double signedChangeRate; // 부호 있는 전일 대비 등락률 (절대값은 changeRate와 동일)
+
+//  20250826 어노테이션으로 대체
+//  public Object getSignedChangeRate() {
+//  }
 }

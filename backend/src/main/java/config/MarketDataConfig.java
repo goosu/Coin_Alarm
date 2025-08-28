@@ -33,7 +33,10 @@ public class MarketDataConfig implements WebSocketMessageBrokerConfigurer {
     // setAllowedOrigins("*")로 모든 도메인에서의 접속을 허용하며,
     // .withSockJS()를 제거하여 순수 WebSocket 클라이언트(App.tsx)와 일치시킵니다.
     registry.addEndpoint("/ws")
-            .setAllowedOrigins("*"); // 모든 도메인에서의 접속 허용
+            //.setAllowedOrigins("*") // 모든 도메인에서의 접속 허용  ==> EROOR
+            //20250827 * 대신 허용할 Origin을 명시적으로 나열하면`allowCredentials is true` 일 때 `*`을 사용할 수 없다는 오류를 해결
+            .setAllowedOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .withSockJS();
 
     log.info("✅ STOMP 엔드포인트 등록 완료: /ws (순수 WebSocket)");
     // 정확한 Origin을 로깅하려면 여기서 허용된 Origin을 문자열로 직접 출력해야 합니다.

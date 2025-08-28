@@ -6,6 +6,7 @@ import coinalarm.Coin_Alarm.upbit.UpbitTickerResponse;
 import coinalarm.Coin_Alarm.upbit.UpbitWSC;
 import coinalarm.Coin_Alarm.upbit.UpbitCandleResponse;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -206,6 +207,7 @@ public class MarketDataService {
     }).collect(Collectors.toList());
   }
 
+  //캔들데이터 push
   // 주기적 푸시 (1초마다): 즐겨찾기 우선, 그 외는 필터링(예: 5분봉 기준)
   @Scheduled(fixedRate = 1000)
   public void pushLatestMarketDataToClients() {
@@ -232,7 +234,7 @@ public class MarketDataService {
       }
     });
 
-    // build DTO lists
+    // build DTO lists  캔들데이터 가져옴
     List<CoinResponseDto> favorites = new ArrayList<>();
     List<CoinResponseDto> normals = new ArrayList<>();
 
@@ -268,6 +270,39 @@ public class MarketDataService {
 
     messagingTemplate.convertAndSend("/topic/market-data", all);
     messagingTemplate.convertAndSend("/topic/buy-sell-ratio", buySellRatios);
+  }
+
+  //20250826 데이터가공
+  // !!!! 아래 getMarketData 메소드를 MarketDataService.java에 추가하거나 수정하세요 !!!!
+  // 이 메소드가 MarketDataController에서 호출됩니다.
+  // 기존 MarketDataService에 있는 getTicker 등을 활용하여 데이터 조합
+  public Map<String, Object> getMarketData() throws JsonProcessingException {
+    // 모든 KRW 마켓 코드 가져오기 (한번만 가져와 캐싱해두면 효율적)
+    // 여기서는 예시로 제한된 마켓 코드 사용
+    List<String> marketCodes = upbitClient.getAllKrwMarketCodes();
+    if (marketCodes.isEmpty()) {
+      marketCodes = List.of("KRW-BTC", "KRW-ETH", "KRW-XRP"); // 폴백
+    }
+
+    // Upbit REST API에서 티커 정보 가져오기
+    List<UpbitTickerResponse> tickers = upbitClient.getTicker(marketCodes);
+
+    // 프론트엔드 App.tsx의 Coin 타입에 맞게 데이터 가공
+    Map<String, Object> processedData = new HashMap<>();
+    for (UpbitTickerResponse ticker : tickers) {
+      Map<String, Object> coinData = new HashMap<>();
+      coinData.put("symbol", ticker.getMarket());
+      coinData.put("price", ticker.getTradePrice());
+      coinData.put("volume1m", ticker.getAccTradePrice24h()); // 임시로 24h 누적거래대금 사용 (1분봉 정보는 다른 API 필요)
+      coinData.put("change24h", ticker.getSignedChangeRate() * 100); // %로 변환
+
+      // 매수/매도 거래대금은 현재 ticker API에 없으므로 임시 값 또는 0
+      coinData.put("buyVolume", 0);
+      coinData.put("sellVolume", 0);
+
+      processedData.put(ticker.getMarket(), coinData);
+    }
+    return processedData;
   }
 
 
