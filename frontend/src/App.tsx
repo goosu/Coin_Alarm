@@ -71,8 +71,22 @@ function useLocalStorage<T>(key: string, initial: T): [T, React.Dispatch<React.S
 }
 
 // 숫자를 화폐 형식으로 포맷 (예: 1,000,000)
-function formatMoney(n: number): string {
-  return n.toLocaleString();
+function formatMoney(n: number): string {  //이런게 무슨문법인지는 나중에 학습
+  // 매수/매도/거래대금 등 큰 숫자에만 적용 (임계값 1000만원)
+  if (Math.abs(n) >= 10_000_000) { // 1000만원 이상
+//     // 조 단위
+//     if (Math.abs(n) >= 1_000_000_000_000) {
+//       return (n / 1_000_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '조원';
+//     }
+//     // 억 단위
+//     if (Math.abs(n) >= 1_000_000_000) {
+//       return (n / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '억원';
+//     }
+    // 백만원 단위 (천만원 단위부터 백만원으로 표현 시작)
+    return (n / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '백만원';
+  }
+  // 그 외 작은 금액은 원 단위로 표시
+  return n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '원'; // 원 단위 명시
 }
 
 // ============================================================================

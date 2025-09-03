@@ -213,6 +213,9 @@ public class MarketDataService {
   public void pushLatestMarketDataToClients() {
     if (latestTickers.isEmpty()) return;
 
+    double buyVolume = 0.0; //20250903 Add
+    double sellVolume = 0.0; //20250903 Add
+
     // 매수/매도 비율 계산
     Map<String, Map<String, Double>> buySellRatios = new ConcurrentHashMap<>();
     long cutoff = System.currentTimeMillis() - WINDOW_SIZE_SECONDS * 1000;
@@ -243,6 +246,8 @@ public class MarketDataService {
       if (t == null) continue;
       String mc = t.getMarketCode();
       if (mc == null) continue;
+
+      //이부분은 -단위로 나눈다음에 심볼부분만 가져오기위해서? 확인해보기
       String sym = mc.contains("-") ? mc.split("-")[1] : mc;
 
       double v1 = latest1MinuteVolume.getOrDefault(mc, 0.0);
@@ -250,9 +255,30 @@ public class MarketDataService {
       double v15 = latest15MinuteVolume.getOrDefault(mc, 0.0);
       double v1h = latest1HourVolume.getOrDefault(mc, 0.0);
 
-      CoinResponseDto dto = new CoinResponseDto(null, mc, sym, t.getTradePriceNormalized(),
-              String.format("%.2f%%", t.getChangeRate() != null ? t.getChangeRate() * 100 : 0.0),
-              t.getAccTradePrice24h(), v1, v5, v15, v1h, List.of());
+//20250829 bulider 사용으로 명시화하여 직관적이게 수정
+//      CoinResponseDto dto = new CoinResponseDto(null, mc, sym, t.getTradePriceNormalized(),
+//              String.format("%.2f%%", t.getChangeRate() != null ? t.getChangeRate() * 100 : 0.0),
+//              t.getAccTradePrice24h(), v1, v5, v15, v1h, List.of());
+
+      //20250829 수정 str
+      // CoinResponseDto 빌드: 프론트엔드의 Coin 타입 필드명과 일치시켜 값을 할당합니다.
+      CoinResponseDto dto = CoinResponseDto.builder()
+              .symbol(mc) // Market Code (예: KRW-BTC)
+              .price(t.getTradePriceNormalized()) // 현재가
+              .change24h(t.getSignedChangeRateNormalized() * 100) // 전일대비 (%)
+              .accTradePrice24h(t.getAccTradePrice24hNormalized()) // 24시간 누적 거래대금 (UpbitTickerResponse에서 가져옴)
+              .volume1m(v1) // latest1MinuteVolume에서 가져온 1분봉 값
+              .volume5m(v5) // latest5MinuteVolume에서 가져온 5분봉 값
+              .volume15m(v15) // latest15MinuteVolume에서 가져온 15분봉 값
+              .volume1h(v1h)   // latest1HourVolume에서 가져온 1시간봉 값
+              .buyVolume(0.0)  // 매수/매도 거래대금 (tradeWindows에서 계산)
+              .sellVolume(0.0)
+              .build();
+
+      // 디버깅용: DTO가 프론트엔드로 보내지기 전 최종 값 확인
+      log.info("DEBUG_DTO_SENT: {}", dto.toString()); // CoinResponseDto에 @ToString (Lombok) 추가 필요!
+      //20250829 수정 End
+
       if (favoriteMarkets.contains(mc)) favorites.add(dto);
       else normals.add(dto);
     }
@@ -277,34 +303,34 @@ public class MarketDataService {
   // !!!! 아래 getMarketData 메소드를 MarketDataService.java에 추가하거나 수정하세요 !!!!
   // 이 메소드가 MarketDataController에서 호출됩니다.
   // 기존 MarketDataService에 있는 getTicker 등을 활용하여 데이터 조합
-  public Map<String, Object> getMarketData() throws JsonProcessingException {
-    // 모든 KRW 마켓 코드 가져오기 (한번만 가져와 캐싱해두면 효율적)
-    // 여기서는 예시로 제한된 마켓 코드 사용
-    List<String> marketCodes = upbitClient.getAllKrwMarketCodes();
-    if (marketCodes.isEmpty()) {
-      marketCodes = List.of("KRW-BTC", "KRW-ETH", "KRW-XRP"); // 폴백
-    }
-
-    // Upbit REST API에서 티커 정보 가져오기
-    List<UpbitTickerResponse> tickers = upbitClient.getTicker(marketCodes);
-
-    // 프론트엔드 App.tsx의 Coin 타입에 맞게 데이터 가공
-    Map<String, Object> processedData = new HashMap<>();
-    for (UpbitTickerResponse ticker : tickers) {
-      Map<String, Object> coinData = new HashMap<>();
-      coinData.put("symbol", ticker.getMarket());
-      coinData.put("price", ticker.getTradePrice());
-      coinData.put("volume1m", ticker.getAccTradePrice24h()); // 임시로 24h 누적거래대금 사용 (1분봉 정보는 다른 API 필요)
-      coinData.put("change24h", ticker.getSignedChangeRate() * 100); // %로 변환
-
-      // 매수/매도 거래대금은 현재 ticker API에 없으므로 임시 값 또는 0
-      coinData.put("buyVolume", 0);
-      coinData.put("sellVolume", 0);
-
-      processedData.put(ticker.getMarket(), coinData);
-    }
-    return processedData;
-  }
+//  public Map<String, Object> getMarketData() throws JsonProcessingException {
+//    // 모든 KRW 마켓 코드 가져오기 (한번만 가져와 캐싱해두면 효율적)
+//    // 여기서는 예시로 제한된 마켓 코드 사용
+//    List<String> marketCodes = upbitClient.getAllKrwMarketCodes();
+//    if (marketCodes.isEmpty()) {
+//      marketCodes = List.of("KRW-BTC", "KRW-ETH", "KRW-XRP"); // 폴백
+//    }
+//
+//    // Upbit REST API에서 티커 정보 가져오기
+//    List<UpbitTickerResponse> tickers = upbitClient.getTicker(marketCodes);
+//
+//    // 프론트엔드 App.tsx의 Coin 타입에 맞게 데이터 가공
+//    Map<String, Object> processedData = new HashMap<>();
+//    for (UpbitTickerResponse ticker : tickers) {
+//      Map<String, Object> coinData = new HashMap<>();
+//      coinData.put("symbol", ticker.getMarket());
+//      coinData.put("price", ticker.getTradePrice());
+//      coinData.put("volume1m", ticker.getAccTradePrice24h()); // 임시로 24h 누적거래대금 사용 (1분봉 정보는 다른 API 필요)
+//      coinData.put("change24h", ticker.getSignedChangeRate() * 100); // %로 변환
+//
+//      // 매수/매도 거래대금은 현재 ticker API에 없으므로 임시 값 또는 0
+//      coinData.put("buyVolume", 0);
+//      coinData.put("sellVolume", 0);
+//
+//      processedData.put(ticker.getMarket(), coinData);
+//    }
+//    return processedData;
+//  }
 
 
 }
