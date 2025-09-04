@@ -25,6 +25,16 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.h2database:h2'
 
+	implementation 'mysql:mysql-connector-java:8.0.33' //20250825 추가
+
+	//웹소켓 연결을 위한 의존성
+	implementation 'org.springframework.boot:spring-boot-starter-websocket' // <-- WebSocket 의존성 추가
+	implementation 'com.squareup.okhttp3:okhttp:4.9.3' // Upbit WebSocket 연결용 (최신 버전을 사용하세요)
+	implementation 'com.fasterxml.jackson.core:jackson-databind' //20250825 ADD
+
+	//implementation 'com.fasterxml.jackson.core:jackson-databind' // JSON 직렬화/역직렬화용 (SpringBoot web에 포함)
+	//implementation 'com.fasterxml.jackson.core:jackson-annotations' // @JsonProperty 사용을 위해 필요
+
 	// Lombok 의존성 추가: Getter, Setter, 생성자 등을 어노테이션으로 자동 생성하여 코드량을 줄여줍니다.
 	// compileOnly: 컴파일 시에만 필요하고, 런타임 JAR에는 포함되지 않습니다.
 	// annotationProcessor: 어노테이션 프로세서로 동작하여 컴파일 시점에 코드를 생성합니다.
@@ -44,7 +54,7 @@ tasks.named('bootRun') {
 }
 
 tasks.named('test') {
-	enabled = false //test 비활성화
+	enabled = false
 	useJUnitPlatform()
 	jvmArgs = ["--enable-preview"] // 테스트 시에도 가상 스레드 프리뷰 활성화
 }

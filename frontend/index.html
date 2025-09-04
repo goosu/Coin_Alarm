@@ -1,13 +1,30 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>코인 사냥꾼</title>
+  <!-- [global is not defined 에러 해결용 스크립트] -->
+  <!-- 이 스크립트는 global 변수를 정의하는 것이므로 <head>에 두는 것이 맞습니다. -->
+  <script type="application/javascript">
+    var global = window;
+  </script>
+  <!-- CSS 링크는 <head>에 유지합니다. -->
+  <!--<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"> -->
+  <!-- !!! 중요: main.tsx 스크립트 링크는 이제 <head>에서 제거하고 </body> 직전으로 이동합니다. !!! -->
+  <!-- <script type="module" src="./src/main.tsx"></script>  이 줄을 여기서 삭제합니다. -->
+</head>
+<body class="bg-gray-100">
+<!-- React 앱이 렌더링될 대상 DOM 요소를 추가합니다. -->
+<!-- !!! 중요: id="root"를 가진 div가 body 안에 있어야 합니다. !!! -->
+<div id="root"></div>
+
+<!-- 기존에 body 안에 있던 모든 UI 요소들은 이제 React 앱인 App.tsx 안에서 관리됩니다.
+     따라서 아래 div 들은 이제 App.tsx의 내용을 담기 위한 <div id="root"></div> 하나로 충분합니다.
+     만약 아래 내용들이 App.tsx로 옮겨지지 않았다면, 지금은 흰 화면만 보이거나 App.tsx 내용이 중복됩니다.
+     주로 이 모든 내용은 App.tsx 안에서 작성됩니다.
+-->
+
+<!-- 이렇게 해야 HTML 문서의 모든 DOM 요소가 로드된 후에 JavaScript 코드가 실행됩니다. -->
+<script type="module" src="./src/main.tsx"></script>
+</body>
 </html>
