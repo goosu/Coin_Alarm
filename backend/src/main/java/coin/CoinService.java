@@ -1,22 +1,19 @@
-// backend/src/main/java/coinalarm/Coin_Alarm/coin/CoinService.java
-//package coin; // <-- 코인 관련 클래스들의 패키지
 package coinalarm.Coin_Alarm.coin;
 
-import org.springframework.beans.factory.annotation.Autowired; // 의존성 주입을 위해 필요
-import org.springframework.stereotype.Service; // Spring의 Service 컴포넌트임을 명시
-import org.springframework.transaction.annotation.Transactional; // 트랜잭션 관리를 위해 필요
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList; // 결과를 담을 List 구현체
-import java.util.List; // 결과를 List 형태로 반환
+import java.util.ArrayList;
+import java.util.List;
 
-@Service // Spring Bean으로 등록됩니다.
-@Transactional // 이 클래스의 모든 public 메서드가 트랜잭션 안에서 실행되도록 설정합니다.
+@Service
+@Transactional
 public class CoinService {
 
-  // CoinDao 인터페이스 타입의 필드를 선언하고 Spring으로부터 주입받습니다.
   private final CoinDao coinDao;
 
-  @Autowired // 생성자 주입
+  @Autowired
   public CoinService(CoinDao coinDao) {
     this.coinDao = coinDao;
   }
@@ -47,16 +44,17 @@ public class CoinService {
 
   /**
    * 애플리케이션 시작 시 데이터베이스에 초기 코인 데이터를 저장하는 메서드입니다.
+   * Coin 엔티티에 symbol 필드를 추가함에 따라 saveInitialCoins()에서도 해당 필드를 추가합니다.
    */
   public void saveInitialCoins() {
     List<Coin> initialCoins = new ArrayList<>();
-    // Coin 객체 생성 시, Coin.java에 추가한 ID를 제외한 생성자를 사용합니다.
-    initialCoins.add(new Coin("Bitcoin", 800_000_000_000L, "+2.3%", 20_000_000_000L, List.of("미체결", "1분거래대금10억")));
-    initialCoins.add(new Coin("Ethereum", 300_000_000_000L, "-1.1%", 10_000_000_000L, List.of("1회체결3억")));
-    // SmallCoin의 marketCap을 500억으로 수정하여 필터 조건에 맞도록 합니다.
-    initialCoins.add(new Coin("SmallCoin", 50_000_000_000L, "+0.5%", 30_000_000L, List.of()));
-    initialCoins.add(new Coin("LargeCoinExample", 6_000_000_000_000L, "+1.0%", 50_000_000_000L, List.of("대형코인알람")));
-    initialCoins.add(new Coin("MidCoinExample", 1_000_000_000_000L, "-0.5%", 15_000_000_000L, List.of("중형코인알람")));
+    // Coin 객체 생성 시, Coin.java에 정의된 생성자의 인자 순서와 타입을 정확히 맞춥니다.
+    // 기존 데이터에 적절한 symbol을 할당합니다.
+    initialCoins.add(new Coin("Bitcoin", 800_000_000_000L, "+2.3%", 20_000_000_000L, List.of("미체결", "1분거래대금10억"), "KRW-BTC")); // <-- [수정] symbol 추가
+    initialCoins.add(new Coin("Ethereum", 300_000_000_000L, "-1.1%", 10_000_000_000L, List.of("1회체결3억"), "KRW-ETH")); // <-- [수정] symbol 추가
+    initialCoins.add(new Coin("SmallCoin", 50_000_000_000L, "+0.5%", 30_000_000L, List.of(), "KRW-XRP")); // <-- [수정] symbol 추가 (예시)
+    initialCoins.add(new Coin("LargeCoinExample", 6_000_000_000_000L, "+1.0%", 50_000_000_000L, List.of("대형코인알람"), "KRW-SOL")); // <-- [수정] symbol 추가 (예시)
+    initialCoins.add(new Coin("MidCoinExample", 1_000_000_000_000L, "-0.5%", 15_000_000_000L, List.of("중형코인알람"), "KRW-DOGE")); // <-- [수정] symbol 추가 (예시)
 
     // 각 코인 객체를 CoinDao를 통해 데이터베이스에 저장합니다.
     for (Coin coin : initialCoins) {

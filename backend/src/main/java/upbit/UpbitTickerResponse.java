@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // <-- [추가]
 /**
  * Upbit REST API /v1/ticker 응답 JSON을 Java 객체로 매핑하는 DTO
  * Lombok 어노테이션을 사용하여 Getter, Setter, toString()을 자동 생성합니다.
@@ -12,9 +12,16 @@ import lombok.ToString;
 @Getter // 모든 필드의 Getter 메소드를 자동 생성
 @Setter // 모든 필드의 Setter 메소드를 자동 생성
 @ToString // toString() 메소드를 자동 생성
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UpbitTickerResponse {
 
-  @JsonProperty("market")
+  // 20250905 Upbit에서 받아오는 type형태 추가(무시해도 된다고 안함) STR
+  @JsonProperty("type")
+  private String type; // Upbit 웹소켓 메시지 타입 (예: "ticker", "trade")
+  // 20250905 Upbit에서 받아오는 type형태 추가(무시해도 된다고 안함) END
+
+//  @JsonProperty("market") market => code 업비트 API
+  @JsonProperty("code")
   private String market; // 마켓명 (예: KRW-BTC)
 
   @JsonProperty("trade_date")

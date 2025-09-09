@@ -1,88 +1,66 @@
 package coinalarm.Coin_Alarm.market;
 
 import coinalarm.Coin_Alarm.coin.CoinResponseDto;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate; // <-- 추가!
-import org.springframework.scheduling.annotation.Scheduled; // <-- 추가!
-import org.springframework.stereotype.Controller; // <-- @RestController 대신 @Controller로 변경!
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map; // Map 임포트 (sendMarketData에서 사용)
+import java.util.Map; // List가 아닌 Map으로 반환
 import java.util.Set; // Set 임포트
 
-@Controller // <-- @RestController 대신 @Controller 사용
+@RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:5173") // 프론트엔드 URL에 맞게 설정
+@CrossOrigin(origins = "http://localhost:5173")
 public class MarketDataController {
 
   private final MarketDataService marketDataService;
-  private final SimpMessagingTemplate simpMessagingTemplate; // <-- 추가!
 
   @Autowired
-  public MarketDataController(MarketDataService marketDataService, SimpMessagingTemplate simpMessagingTemplate) { // <-- SimpMessagingTemplate 주입
+  public MarketDataController(MarketDataService marketDataService) {
     this.marketDataService = marketDataService;
-    this.simpMessagingTemplate = simpMessagingTemplate; // <-- 주입받은 객체 할당
   }
 
-  // 기존 REST API 엔드포인트들은 그대로 유지
+  /**
+   * 필터링된 라이브 시장 데이터를 가져오는 엔드포인트
+   * MarketDataService.getFilteredLiveMarketData는 boolean 인자 3개(large, mid, small)만 받음.
+   * 반환 타입은 Map<String, CoinResponseDto>.
+   */
   @GetMapping("/market-data")
-  public ResponseEntity<List<CoinResponseDto>> getLiveMarketData(
-          @RequestParam(defaultValue = "true") boolean all,
-          @RequestParam(defaultValue = "false") boolean large,
-          @RequestParam(defaultValue = "false") boolean mid,
-          @RequestParam(defaultValue = "false") boolean small) {
-    List<CoinResponseDto> data = marketDataService.getFilteredLiveMarketData(all, large, mid, small);
-    return ResponseEntity.ok(data);
+  public Map<String, CoinResponseDto> getFilteredLiveMarketData( // [변경] Map 반환
+                                                                 @RequestParam(defaultValue = "false") boolean large, // 디폴트 값을 false로 변경 (필터링되지 않게)
+                                                                 @RequestParam(defaultValue = "false") boolean mid,
+                                                                 @RequestParam(defaultValue = "false") boolean small
+                                                                 // [삭제] all 파라미터는 MarketDataService에서 처리하지 않음
+  ) {
+    // MarketDataService의 getFilteredLiveMarketData는 large, mid, small만 인자로 받음
+    return marketDataService.getFilteredLiveMarketData(large, mid, small);
   }
 
+
+  /**
+   * 즐겨찾기 마켓 추가 (void 반환이므로, 변수에 할당하지 않음)
+   */
   @PostMapping("/favorites/add")
-  public ResponseEntity<String> addFavorite(@RequestParam String marketCode) {
-    boolean added = marketDataService.addFavoriteMarket(marketCode);
-    if (added) {
-      return ResponseEntity.ok(marketCode + " added to favorites.");
-    } else {
-      return ResponseEntity.badRequest().body(marketCode + " already in favorites or invalid.");
-    }
+  public ResponseEntity<String> addFavoriteMarket(@RequestParam String marketCode) {
+    marketDataService.addFavoriteMarket(marketCode); // [수정] void 메소드이므로 반환값을 받지 않음
+    return new ResponseEntity<>("Favorite market added: " + marketCode, HttpStatus.OK);
   }
 
+  /**
+   * 즐겨찾기 마켓 제거 (void 반환이므로, 변수에 할당하지 않음)
+   */
   @DeleteMapping("/favorites/remove")
-  public ResponseEntity<String> removeFavorite(@RequestParam String marketCode) {
-    boolean removed = marketDataService.removeFavoriteMarket(marketCode);
-    if (removed) {
-      return ResponseEntity.ok(marketCode + " removed from favorites.");
-    } else {
-      return ResponseEntity.badRequest().body(marketCode + " not found in favorites.");
-    }
+  public ResponseEntity<String> removeFavoriteMarket(@RequestParam String marketCode) {
+    marketDataService.removeFavoriteMarket(marketCode); // [수정] void 메소드이므로 반환값을 받지 않음
+    return new ResponseEntity<>("Favorite market removed: " + marketCode, HttpStatus.OK);
   }
 
+  /**
+   * 즐겨찾기 마켓 목록 조회
+   */
   @GetMapping("/favorites")
-  public ResponseEntity<Set<String>> getFavorites() {
-    return ResponseEntity.ok(marketDataService.getFavoriteMarkets());
-  }
-
-  // =========================================================
-  // 실시간 시장 데이터 WebSocket 발행 로직 (!!! 중요 !!!)
-  // =========================================================
-  @Scheduled(fixedRate = 3000) // 3초마다 실행 (Upbit API Rate Limit 고려)
-  public void sendMarketData() { // throws JsonProcessingException 제거
-    try {
-      // 시장 데이터 가져오기 (MarketDataService.getMarketData가 Upbit API 호출)
-      // 이 메소드가 Map<String, Object> 또는 List<CoinResponseDto> 등을 반환하도록 수정되어야 함
-      // 현재 Gist의 MarketDataService.java에는 이 메소드가 없음.
-      // MarketDataService에 getLiveMarketData 또는 getMarketData와 같은 메소드 추가 필요.
-      Map<String, Object> marketData = marketDataService.getMarketData(); // 이 메소드 필요!
-
-      // WebSocket으로 데이터 전송
-      simpMessagingTemplate.convertAndSend("/topic/marketData", marketData); // STOMP Topic 발행
-      System.out.println("✅ WebSocket 데이터 발행 성공: " + marketData.size() + "개 코인 데이터"); // 콘솔 로그 추가
-    } catch (JsonProcessingException e) {
-      System.err.println("❌ MarketDataController - JSON 처리 오류: " + e.getMessage());
-    } catch (Exception e) {
-      System.err.println("❌ MarketDataController - 데이터 발행 중 알 수 없는 오류: " + e.getMessage());
-      e.printStackTrace();
-    }
+  public Set<String> getFavoriteMarkets() {
+    return marketDataService.getFavoriteMarkets();
   }
 }
