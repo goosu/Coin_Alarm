@@ -29,7 +29,7 @@ dependencies {
 
 	// [추가]: Java-WebSocket 라이브러리 (UpbitWSC에서 WebSocketClient 사용 시 필수)
 	// 'package org.java_websocket.client does not exist' 에러 해결
-	implementation 'org.java-websocket:Java-WebSocket:1.5.3' // 최신 안정 버전 (3.5.2에 호환)
+	//implementation 'org.java-websocket:Java-WebSocket:1.5.3' // 최신 안정 버전 (3.5.2에 호환)
 
 	// [추가]: Spring Boot Starter WebFlux (WebClient, Mono, Flux 사용 시 필수)
 	// 'cannot find symbol WebClient', 'package reactor.core.publisher does not exist' 에러 해결
@@ -37,7 +37,7 @@ dependencies {
 
 	//웹소켓 연결을 위한 의존성
 	implementation 'org.springframework.boot:spring-boot-starter-websocket' // <-- WebSocket 의존성 추가
-	//implementation 'com.squareup.okhttp3:okhttp:4.9.3' // Upbit WebSocket 연결용 (최신 버전을 사용하세요)
+	implementation 'com.squareup.okhttp3:okhttp:4.9.3' // Upbit WebSocket 연결용 (최신 버전을 사용하세요)
 	implementation 'com.fasterxml.jackson.core:jackson-databind' //20250825 ADD
 
 	//implementation 'com.fasterxml.jackson.core:jackson-databind' // JSON 직렬화/역직렬화용 (SpringBoot web에 포함)
