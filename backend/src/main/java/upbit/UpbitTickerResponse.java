@@ -109,8 +109,8 @@ public class UpbitTickerResponse {
   // UpbitClient, MarketDataService에서 필요한 'Normalized' 값들을 위한 헬퍼 메소드
   // Lombok의 @Getter가 이들을 자동 생성할 수도 있으나, 명시적으로 선언하여 명확히 합니다.
   public String getMarketCode() { return market; }
-  public Double getTradePriceNormalized() { return tradePrice; }
-  public Double getSignedChangeRateNormalized() { return signedChangeRate; }
-  public Double getAccTradePrice24hNormalized() { return accTradePrice24h; }
+  public Double getTradePrice() { return tradePrice; }
+  public Double getSignedChangeRate() { return signedChangeRate; }
+  public Double getAccTradePrice24h() { return accTradePrice24h; }
   public Double getTradeVolumeNormalized() { return tradeVolume; }
 }

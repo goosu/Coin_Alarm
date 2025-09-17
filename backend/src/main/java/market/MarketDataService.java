@@ -34,7 +34,7 @@ public class MarketDataService {
   private final CoinDao coinDao;
 
   // --- 캐시 저장소들 ---
-  private final ConcurrentHashMap<String, UpbitTickerResponse> latestTickers = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, UpbitTickerResponse> latestTickers = new ConcurrentHashMap<>(); //rest apit
   private final ConcurrentHashMap<String, Double> latest1MinuteVolume = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Double> latest5MinuteVolume = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Double> latest15MinuteVolume = new ConcurrentHashMap<>();
@@ -72,6 +72,7 @@ public class MarketDataService {
   }
 
   // --- 웹소켓 메시지 처리 메소드: 실시간 티커 데이터를 받아 캐시에 업데이트합니다 ---
+  //20250917 이부분은 따로 삭제처리나 수정 데이터가 안들어오는모델
   public void processTickerMessage(UpbitTickerResponse ticker) {
     latestTickers.put(ticker.getMarket(), ticker);
 
@@ -92,36 +93,38 @@ public class MarketDataService {
       return;
     }
     String marketCode = allMarketCodes.get(currentCandleMarketIndex);
-
+    
+    //20250911 getTradeVolume => candleAccTradePrice 수정  (getTradeVolume null로 넘어옴 체결데이터인듯)
     upbitClient.getMinuteCandles(marketCode, 1, 1)
             .blockOptional().ifPresent(candles -> {
               candles.forEach(candle -> {
-                if (candle.getTradeVolume() != null) {
-                  latest1MinuteVolume.put(marketCode, candle.getTradeVolume());
+//                if (candle.getTradeVolume() != null) {
+                if (candle.getCandleAccTradePrice() != null) {
+                  latest1MinuteVolume.put(marketCode, candle.getCandleAccTradePrice());
                 }
               });
             });
     upbitClient.getMinuteCandles(marketCode, 5, 1)
             .blockOptional().ifPresent(candles -> {
               candles.forEach(candle -> {
-                if (candle.getTradeVolume() != null) {
-                  latest5MinuteVolume.put(marketCode, candle.getTradeVolume());
+                if (candle.getCandleAccTradePrice() != null) {
+                  latest5MinuteVolume.put(marketCode, candle.getCandleAccTradePrice());
                 }
               });
             });
     upbitClient.getMinuteCandles(marketCode, 15, 1)
             .blockOptional().ifPresent(candles -> {
               candles.forEach(candle -> {
-                if (candle.getTradeVolume() != null) {
-                  latest15MinuteVolume.put(marketCode, candle.getTradeVolume());
+                if (candle.getCandleAccTradePrice() != null) {
+                  latest15MinuteVolume.put(marketCode, candle.getCandleAccTradePrice());
                 }
               });
             });
     upbitClient.getMinuteCandles(marketCode, 60, 1)
             .blockOptional().ifPresent(candles -> {
               candles.forEach(candle -> {
-                if (candle.getTradeVolume() != null) {
-                  latest1HourVolume.put(marketCode, candle.getTradeVolume());
+                if (candle.getCandleAccTradePrice() != null) {
+                  latest1HourVolume.put(marketCode, candle.getCandleAccTradePrice());
                 }
               });
             });
@@ -162,7 +165,7 @@ public class MarketDataService {
             .map(Coin::getSymbol)
             .collect(Collectors.toSet());
 
-    // 필터링된 데이터를 Map 형태로 변환 (웹소켓 전송 포맷에 맞춤)
+    // 필터링된 데이터를 Map 형태로 변환 (웹소켓 전송 포맷에 맞춤) //20250915 여기에서 필터링되어서 5개로 되네
     Map<String, CoinResponseDto> finalFilteredMap = convertedList.stream()
             .filter(dto -> dbMarketSymbols.contains(dto.getSymbol()))
             .collect(Collectors.toMap(CoinResponseDto::getSymbol, dto -> dto));

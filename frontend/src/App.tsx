@@ -73,7 +73,7 @@ function useLocalStorage<T>(key: string, initial: T): [T, React.Dispatch<React.S
 // 숫자를 화폐 형식으로 포맷 (예: 1,000,000)
 function formatMoney(n: number): string {  //이런게 무슨문법인지는 나중에 학습
   // 매수/매도/거래대금 등 큰 숫자에만 적용 (임계값 1000만원)
-  if (Math.abs(n) >= 10_000_000) { // 1000만원 이상
+  if (Math.abs(n) >= 1_000_000) { // 1000만원 이상
 //     // 조 단위
 //     if (Math.abs(n) >= 1_000_000_000_000) {
 //       return (n / 1_000_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '조원';
@@ -83,7 +83,7 @@ function formatMoney(n: number): string {  //이런게 무슨문법인지는 나
 //       return (n / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '억원';
 //     }
     // 백만원 단위 (천만원 단위부터 백만원으로 표현 시작)
-    return (n / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '백만원';
+    return (n / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 0 }) + '백만';
   }
   // 그 외 작은 금액은 원 단위로 표시
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '원'; // 원 단위 명시
@@ -551,10 +551,10 @@ export default function App() {
                     <th>심볼</th>
                     <th>현재가</th>
                     <th>24H 거래대금</th>
-                    <th>1분봉 거래대금</th>
-                    <th>5분봉 거래대금</th> {/* 새로 추가 */}
-                    <th>15분봉 거래대금</th>
-                    <th>1시간봉 거래대금</th>
+                    <th>Vol 1m</th>
+                    <th>Vol 5m</th> {/* 새로 추가 */}
+                    <th>Vol 15m</th>
+                    <th>Vol 1h</th>
                     <th>전일대비</th> {/* 유지율, 전일대비 통합 */}
                   </tr>
                 </thead>
@@ -575,13 +575,13 @@ export default function App() {
                           {favorites.includes(coin.symbol) ? "★" : "☆"}
                         </button>
                         {coin.symbol}
-                      </td>
-                      <td>{formatMoney(coin.price)}원</td>
-                      <td>{formatMoney(coin.volume24h ?? 0)}원</td>
-                      <td>{formatMoney(coin.volume1m)}원</td>
-                      <td>{formatMoney(coin.volume5m ?? 0)}원</td> {/* 새로 추가 */}
-                      <td>{formatMoney(coin.volume15m ?? 0)}원</td>
-                      <td>{formatMoney(coin.volume1h ?? 0)}원</td>
+                      </td>  {/*20250911 서버에서 백만원을 스트링으로 받음 price에는 나누는거없이 해야할듯*/}
+                      <td>{coin.price}원</td>
+                      <td>{formatMoney(coin.volume24h ?? 0)}</td>
+                      <td>{formatMoney(coin.volume1m)}</td>
+                      <td>{formatMoney(coin.volume5m ?? 0)}</td> {/* 새로 추가 */}
+                      <td>{formatMoney(coin.volume15m ?? 0)}</td>
+                      <td>{formatMoney(coin.volume1h ?? 0)}</td>
                       <td>{coin.change24h ? `${coin.change24h.toFixed(2)}%` : '-'}</td>
                     </tr>
                   ))}
