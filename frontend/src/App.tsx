@@ -31,6 +31,9 @@ type Coin = {
   change24h: number; // 전일대비 (필수, 백엔드에서 %로 계산되어 옴)
   maintenanceRate?: number; // 유지율 (선택적, 현재 백엔드에서 0으로 전달)
   timestamp?: number; // 데이터 수신 시간 (CoinResponseDto에 timestamp 필드가 없다면 현재 시간 사용)
+
+    // *** [신규 추가] 즐겨찾기 여부 ***
+  isFavorite?: boolean; // 백엔드에서 전달되는 즐겨찾기 여부
 };
 
 
@@ -88,6 +91,16 @@ function formatMoney(n: number): string {  //이런게 무슨문법인지는 나
   // 그 외 작은 금액은 원 단위로 표시
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '원'; // 원 단위 명시
 }
+
+//20250918 전일대비 % 색상결정 STR
+function getChangeColor(change: number) : string{
+  if(change > 0) return 'text-red-600';
+  if(change < 0) return 'text-blue-600';
+  return 'text-gray-600'; //보합
+}
+//여기서부터 작성시작
+
+//
 
 // ============================================================================
 // Main App Component

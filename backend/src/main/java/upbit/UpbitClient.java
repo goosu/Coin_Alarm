@@ -66,7 +66,7 @@ public class UpbitClient {
             .collectList();
   }
 
-  // *** [신규 추가] 즐겨찾기 코인들의 일봉 거래대금 배치 수집 (비동기 처리) ***
+  //20250918 *** [신규 추가] 즐겨찾기 코인들의 일봉 거래대금 배치 수집 (비동기 처리) ***
   public Mono<Void> updateDailyVolumesForFavorites(List<String> favoriteMarkets) {
     if (favoriteMarkets.isEmpty()) {
       return Mono.empty();

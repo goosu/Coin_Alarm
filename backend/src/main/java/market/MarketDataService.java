@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static coinalarm.Coin_Alarm.AccessingDataJpaApplication.log;
+
 @Service
 public class MarketDataService {
 
@@ -147,12 +149,13 @@ public class MarketDataService {
                       .volume5m(latest5MinuteVolume.getOrDefault(ticker.getMarket(), 0.0))
                       .volume15m(latest15MinuteVolume.getOrDefault(ticker.getMarket(), 0.0))
                       .volume1h(latest1HourVolume.getOrDefault(ticker.getMarket(), 0.0))
-                      .accTradePrice24h(ticker.getAccTradePrice24h() != null ? ticker.getAccTradePrice24h() : 0.0)
+                      .accTradePrice24h(ticker.getAccTradePrice24h() != null ? ticker.getAccTradePrice24h() : 0.0) /*** [신규] 일봉 거래대금 ***/
                       .change24h(ticker.getSignedChangeRate() != null ? ticker.getSignedChangeRate()*100 : 0.0)
                       // buyVolume/sellVolume: Map<String, Map<String, Double>> 형태의 buySellRatios에서 추출
                       .buyVolume(buySellRatios.getOrDefault(ticker.getMarket(), Collections.emptyMap()).getOrDefault("buyRatio", 0.0))
                       .sellVolume(buySellRatios.getOrDefault(ticker.getMarket(), Collections.emptyMap()).getOrDefault("sellRatio", 0.0))
                       .timestamp(ticker.getTradeTimestamp() != null ? ticker.getTradeTimestamp() : System.currentTimeMillis())
+                      .isFavorite(favoriteMarkets.contains(ticker.getMarket())) //20250918 추가
                       .build();
             })
             // 중복 제거 및 정렬
@@ -175,8 +178,37 @@ public class MarketDataService {
 
   // --- 즐겨찾기 마켓 관리 메소드 ---
   public void addFavoriteMarket(String market) {
-    favoriteMarkets.add(market);
+    //20250918 즐겨찾기 일봉을 보내기위한것
+    boolean added = favoriteMarkets.add(market);
+    if(added){
+      updateSingleFavoritedailyVolume(market);
+    }
+
   }
+
+  //20250918 즐겨찾기 일봉을 보내기위한것 STR
+  public void updateSingleFavoritedailyVolume(String market){
+    upbitClient.updateDailyVolumesForFavorites(List.of(market))
+            .subscribe(
+                    null,
+                    error -> log.error("즐겨찾기 일봉 업데이트 실패: {}", market, error)
+            );
+  }
+
+  @Scheduled(fixedRate = 300,000 )
+  public void updateFavoritesDailyVolumes(){
+    if(favoriteMarkets.isEmpty()) return;
+
+    List<String> favorites = new ArrayList<>(favoriteMarkets);
+    log.info("즐겨찾기 마켓 일봉 Update: {}", favorites.size());
+    upbitClient.updateDailyVolumesForFavorites(favorites)
+            .subscribe(
+                    null,
+                    error -> log.error("즐겨찾기 마켓 일봉 업데이트 실패: {}", favorites, error),
+                    () -> log.info("즐겨찾기 마켓 일봉 업데이트 성공: {}", favorites)
+            );
+  }
+  //20250918 즐겨찾기 일봉을 보내기위한것 END
 
   public void removeFavoriteMarket(String market) {
     favoriteMarkets.remove(market);
@@ -220,6 +252,7 @@ public class MarketDataService {
                 .buyVolume(buySellRatios.getOrDefault(coin.getSymbol(), Collections.emptyMap()).getOrDefault("buyRatio", 0.0))
                 .sellVolume(buySellRatios.getOrDefault(coin.getSymbol(), Collections.emptyMap()).getOrDefault("sellRatio", 0.0))
                 .timestamp(latestTicker.getTradeTimestamp() != null ? latestTicker.getTradeTimestamp() : 0L)
+                .isFavorite(favoriteMarkets.contains(coin.getSymbol())) //20250918 추가
                 .build();
         result.put(coin.getSymbol(), dto);
       }
