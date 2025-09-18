@@ -36,4 +36,8 @@ public class CoinResponseDto {
 
   // Upbit Ticker API의 trade_timestamp 또는 데이터 발생 시점의 타임스탬프 (밀리초)
   private Long timestamp;
+
+  //20250917 임시 *** [신규 추가] 즐겨찾기 여부 필드 ***
+  private Boolean isFavorite; // 해당 코인이 즐겨찾기인지 여부
+
 }

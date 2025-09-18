@@ -48,7 +48,7 @@ public class AccessingDataJpaApplication { // 클래스 이름은 프로젝트�
 		return args -> {
 			log.info("Initializing database with sample coin data..."); // 데이터 초기화 시작 로그
 			// 주입받은 coinService 객체의 saveInitialCoins 메서드를 호출하여 초기 데이터를 저장합니다.
-			coinService.saveInitialCoins();
+			coinService.saveInitialCoins(); //이거때문에 5개 코인만 보이는구나 티커를 받아와서 처리해주는게아니라
 			log.info("Database initialization finished."); // 데이터 초기화 완료 로그
 
 			// TODO: 필요하다면 애플리케이션 시작 시 다른 초기화 작업 코드를 여기에 추가할 수 있습니다.
