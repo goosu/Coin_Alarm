@@ -98,7 +98,13 @@ function getChangeColor(change: number) : string{
   if(change < 0) return 'text-blue-600';
   return 'text-gray-600'; //보합
 }
-//여기서부터 작성시작
+
+//20250919 전일대비 % 포맷 함수 ***
+function formatChange(change: number): string{금요일 팝송
+  const prefix = change > 0 ? '+' : '';
+  return `&{prefix}${change.toFixed(2)}%`;
+}
+
 
 //
 
@@ -137,44 +143,6 @@ export default function App() {
 
   useEffect(() => {
     console.log("App: WebSocket effect running, attempting to connect to:", WS_URL);
-
-    // *** [기존] 순수 WebSocket 연결 로직 (전체 주석 처리 시작) ***
-    /*
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => console.log("WebSocket connected:", WS_URL);
-    ws.onmessage = (event) => {
-      try {
-        // 기존 onMessage 로직... (이 부분은 STOMP 클라이언트 로직으로 완전히 대체됩니다)
-        const receivedData = JSON.parse(event.data);
-        let hasNewData = false;
-        const updatedCoins = { ...liveCoins };
-        // ...
-      } catch (error) {
-        console.error("WebSocket message parsing error:", error, event.data);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket disconnected. Attempting to reconnect in 3s...");
-      if (wsRef.current === ws) {
-        wsRef.current = null;
-        // setTimeout 로직...
-      }
-    };
-
-    ws.onerror = (error) => console.error("WebSocket error:", error);
-
-    // 컴포넌트 언마운트 시 WebSocket 연결 종료
-    return () => {
-      console.log("WebSocket cleanup: closing connection.");
-      ws.close();
-      wsRef.current = null;
-    };
-    */
-    // *** [기존] 순수 WebSocket 연결 로직 (전체 주석 처리 끝) ***
-
 
     // *** [신규] STOMP 클라이언트 생성 및 설정 시작 ***
     const client = new Client({
@@ -229,6 +197,7 @@ export default function App() {
                         maintenanceRate: 0,
                         // CoinResponseDto에 timestamp 필드가 있다면 dto.timestamp 사용, 없으면 현재 시간
                         timestamp: dto.timestamp ? Number(dto.timestamp) : Date.now(),
+                        isFavorite: Boolean(dto.isFavorite), //20250919 즐겨찾기 여부
                     };
                 });
             }
@@ -564,11 +533,11 @@ export default function App() {
                     <th>심볼</th>
                     <th>현재가</th>
                     <th>24H 거래대금</th>
+                    <th>전일대비</th> {/* 유지율, 전일대비 통합 */}
                     <th>Vol 1m</th>
                     <th>Vol 5m</th> {/* 새로 추가 */}
                     <th>Vol 15m</th>
                     <th>Vol 1h</th>
-                    <th>전일대비</th> {/* 유지율, 전일대비 통합 */}
                   </tr>
                 </thead>
                 <tbody>
@@ -591,11 +560,11 @@ export default function App() {
                       </td>  {/*20250911 서버에서 백만원을 스트링으로 받음 price에는 나누는거없이 해야할듯*/}
                       <td>{coin.price}원</td>
                       <td>{formatMoney(coin.volume24h ?? 0)}</td>
+                      <td>{coin.change24h ? `${coin.change24h.toFixed(2)}%` : '-'}</td>
                       <td>{formatMoney(coin.volume1m)}</td>
                       <td>{formatMoney(coin.volume5m ?? 0)}</td> {/* 새로 추가 */}
                       <td>{formatMoney(coin.volume15m ?? 0)}</td>
                       <td>{formatMoney(coin.volume1h ?? 0)}</td>
-                      <td>{coin.change24h ? `${coin.change24h.toFixed(2)}%` : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
