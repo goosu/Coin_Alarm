@@ -66,6 +66,23 @@ public class MultiTieredSnapshotBuffer {
     Instant timestamp = snapshot.getTimestamp();
 
     //버퍼 가져오기 (없으면 생성)
+    ConcurrentSkipListMap<Instant, TickerSnapshot> buffer =
+            getOrCreateBuffer(exchangeId, marketCode);
+
+    //마지막 스냅샷 확인
+    Map.Entry<Instant, TickerSnapshot> lastEntry = buffer.lastEntry();
+
+    if(lastEntry == null){
+      //첫 번째 스냅샷은 무조건 저장
+      buffer.put(timestamp, snapshot);
+      return;
+    }
+
+    //마지막 스냅샷과의 시간간격 확인
+    Duration elapsed = Duration.between(lastEntry.getKey(), timestamp);
+
+    //1초 이상 결과 시 저장(Tier 1 기준)
+
   }
 
 }
