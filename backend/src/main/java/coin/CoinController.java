@@ -56,14 +56,14 @@ public class CoinController {
                       // 프론트엔드에서는 MarketDataService의 WebSocket으로 이 값을 채울 것입니다.
                       .price(0.0)
                       .volume1m(0.0)
-                      .volume5m(0.0)
-                      .volume15m(0.0)
-                      .volume1h(0.0)
-                      .accTradePrice24h(0.0)
-                      .change24h(0.0)
+                      .volume5m(0.0) //(REST API에서 채워짐)
+                      .volume15m(0.0) //(REST API에서 채워짐)
+                      .volume1h(0.0) //(REST API에서 채워짐)
+                      .accTradePrice24h(0.0) //(REST API에서 채워짐)
+                      .change24h(0.0) //(REST API에서 채워짐) 추후에 change만 두어 박스형태로 고르는걸로 할예정
                       .buyVolume(0.0)
                       .sellVolume(0.0)
-                      .timestamp(0L)
+                      .timestamp(System.currentTimeMillis())
                       .build();
             })
             .collect(Collectors.toList()); // 변환된 DTO 리스트를 반환

@@ -30,10 +30,11 @@ type Coin = {
 
   change24h: number; // 전일대비 (필수, 백엔드에서 %로 계산되어 옴)
   maintenanceRate?: number; // 유지율 (선택적, 현재 백엔드에서 0으로 전달)
-  timestamp?: number; // 데이터 수신 시간 (CoinResponseDto에 timestamp 필드가 없다면 현재 시간 사용)
+  //timestamp?: number; // 데이터 수신 시간 (CoinResponseDto에 timestamp 필드가 없다면 현재 시간 사용)
 
     // *** [신규 추가] 즐겨찾기 여부 ***
   isFavorite?: boolean; // 백엔드에서 전달되는 즐겨찾기 여부
+
 };
 
 
