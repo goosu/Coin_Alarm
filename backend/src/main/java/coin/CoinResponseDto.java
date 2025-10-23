@@ -19,6 +19,7 @@ public class CoinResponseDto {
   private String symbol;      // 코인 심볼 (예: KRW-BTC) - App.tsx의 symbol, MarketDataService에서 mc
   private Double price;       // 현재가 - App.tsx의 price, MarketDataService에서 t.getTradePriceNormalized()
   private Double volume1m;    // 1분봉 거래대금 - App.tsx의 volume1m
+  /*Rest API에 volume5m, volume15m, volume1h,일봉 필드가 있음*/
   private Double volume5m;    // 5분봉 거래대금 - App.tsx의 volume5m
   private Double volume15m;   // 15분봉 거래대금 - App.tsx의 volume15m
   private Double volume1h;    // 1시간봉 거래대금 - App.tsx의 volume1h
