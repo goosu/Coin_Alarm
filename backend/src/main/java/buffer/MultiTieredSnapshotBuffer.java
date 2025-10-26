@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import static coinalarm.Coin_Alarm.AccessingDataJpaApplication.log;
+import static jdk.internal.net.http.common.Utils.accumulateBuffers;
 import static jdk.internal.net.http.common.Utils.getBuffer;
 
 
@@ -299,5 +300,51 @@ public class MultiTieredSnapshotBuffer {
 }
 
 /*버퍼 가져오기 - 없을경우 생성*/
+private ConcurrentSkipListMap<Instant, TickerSnapshot> getOrCreateBuffer(
+        String exchangeId,
+        String marketCode
+){
+  return buffers
+          .computeIfAbsent(exchangeId, k-> new ConcurrentHashMap<>())
+          .computeIfAbsent(marketCode, k-> new ConcurrentSkipListMap<>());
+  //compteIfAbsent: 키가 없으면 새로운 값을 생성하여 저장하고 반환
+  //Thread->Safe하게 동작함
+}
+}
+
 /*버퍼 가져오기2 - 없을경우 null*/
+private ConcurrentSkipListMap<Instant, TickerSnapshot> getBuffer(
+        String exchangeId,
+        String marketCode
+){
+  Map<String, ConcurrentSkipListMap<Instant, TickerSnapshot>> marketBuffers = buffers.get(exchangeId);
+  if(marketBuffers == null){
+    return null;
+  }
+  return marketBuffers.get(MarketCode);
+}
 /*버퍼 상태 조회(디버깅용)*/
+public Map<String, Object> getBufferStatus(){
+  Map<String, Object> status = new HashMap<>();
+  int totalSnapshots = 0;
+  int totalMarkets = 0;
+
+  for(Map.Entry<String, Map<String, ConcurrentSkipListMap<Instant, TickerSnapshot>>> exchangeEntry : buffers.entrySet())
+  {
+    String exchangId = exchangeEntry.getKey();
+    Map<String, ConcurrentSkipListMap<Instant, TickerSnapshot>> marketBuffers = exchangeEntry.getValue();
+
+    totalMarkets += marketBuffers.size();
+
+    for(ConcurrentSkipListMap<Instant, TickerSnapshot> buffer : marketBuffers.values()){
+      totalSnapshots += buffer.size();
+    }
+  }
+
+  status.put("totalExchange", buffers.size());
+  status.put("totalMarkets", totalMarkets);
+  status.put("totalSnapshots",totalSnapshots);
+
+  return status;
+
+}
