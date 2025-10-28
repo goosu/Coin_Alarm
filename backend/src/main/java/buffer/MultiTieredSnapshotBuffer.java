@@ -323,7 +323,7 @@ private ConcurrentSkipListMap<Instant, TickerSnapshot> getBuffer(
   }
   return marketBuffers.get(MarketCode);
 }
-/*버퍼 상태 조회(디버깅용)*/
+/*버퍼 상태 조회(디버깅용)*/  //20251028 나중에 로직확인
 public Map<String, Object> getBufferStatus(){
   Map<String, Object> status = new HashMap<>();
   int totalSnapshots = 0;
@@ -348,3 +348,5 @@ public Map<String, Object> getBufferStatus(){
   return status;
 
 }
+}
+
