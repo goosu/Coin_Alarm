@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 //마켓 통합 운용서비스 변환
+@Service
 public class IntegratedMarketDataService {
   private final MultiTieredSnapshotBuffer snapshotBuffer;  // 스냅샷 버퍼
   private final AlarmThresholdManager alarmManager;        // 알람 관리
@@ -50,7 +51,7 @@ public class IntegratedMarketDataService {
   private final Map<String, Map<String, MarketCapInfo>> marketCapCache;
 
   @Autowired
-  public IntegatedMarketDataService(
+  public IntegratedMarketDataService(
           MultiTieredSnapshotBuffer snapshotBuffer,
           AlarmThresholdManager alarmManager,
           SimpMessagingTemplate messagingTemplate,
@@ -192,5 +193,24 @@ public class IntegratedMarketDataService {
     }
 
     //REST API로 과거 4시간 캔들 조회
+    exchange.getHistoricalCandles(maketcode,1,240) //1분봉 240개 = 4시간
+            .subscribe(candles->{
+              if(candles.isEmpty()){
+                System.out.println("⚠️ 과거 데이터 없음: " + exchangeId + "/" + marketCode);
+                return;
+              }
+
+              //스냅샷 버퍼 프라이밍
+              snapshotBuffer.primeBuffer(exchangeId, marketCode, candles);
+
+              //프론트엔드로 즉시 데이터 전송
+              sendFavoriteDataToFrontend(exchangeId, marketCode);
+            });
   }
+  /**
+   * ⭐ [즐겨찾기] 프론트엔드로 즐겨찾기 데이터 전송
+   *
+   * 동작: 사용자가 요청한 N분들에 대해 롤링 계산하여 전송
+   */
+
 }
