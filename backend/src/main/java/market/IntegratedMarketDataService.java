@@ -212,5 +212,83 @@ public class IntegratedMarketDataService {
    *
    * 동작: 사용자가 요청한 N분들에 대해 롤링 계산하여 전송
    */
+  private void sendFavoriteDataToFrontend(String exchangeId, String marketCode) {
+    // 여러 N분 데이터 계산
+    Map<String, Double> volumeData = new HashMap<>();
+    volumeData.put("volume1m", snapshotBuffer.calculateRollingVolume(exchangeId, marketCode, 1));
+    volumeData.put("volume5m", snapshotBuffer.calculateRollingVolume(exchangeId, marketCode, 5));
+    volumeData.put("volume15m", snapshotBuffer.calculateRollingVolume(exchangeId, marketCode, 15));
+    volumeData.put("volume1h", snapshotBuffer.calculateRollingVolume(exchangeId, marketCode, 60));
+    volumeData.put("volume24h", snapshotBuffer.calculateRollingVolume(exchangeId, marketCode, 1440));
 
+    // 가격 변화율도 계산
+    Map<String, Double> priceChangeData = new HashMap<>();
+    priceChangeData.put("change1m", snapshotBuffer.calculateRollingPriceChange(exchangeId, marketCode, 1));
+    priceChangeData.put("change5m", snapshotBuffer.calculateRollingPriceChange(exchangeId, marketCode, 5));
+    priceChangeData.put("change24h", snapshotBuffer.calculateRollingPriceChange(exchangeId, marketCode, 1440));
+
+    // CoinResponseDto 생성
+    CoinResponseDto dto = CoinResponseDto.builder()
+            .exchangeId(exchangeId)
+            .symbol(marketCode)
+            .volume1m(volumeData.get("volume1m"))
+            .volume5m(volumeData.get("volume5m"))
+            .volume15m(volumeData.get("volume15m"))
+            .volume1h(volumeData.get("volume1h"))
+            .volume24h(volumeData.get("volume24h"))
+            .change1m(priceChangeData.get("change1m"))
+            .change5m(priceChangeData.get("change5m"))
+            .change24h(priceChangeData.get("change24h"))
+            .isFavorite(true)
+            .timestamp(System.currentTimeMillis())
+            .build();
+
+    // WebSocket으로 전송
+    messagingTemplate.convertAndSend("/topic/favoriteUpdate", dto);
+
+    System.out.println("🌟 즐겨찾기 데이터 전송 완료: " + exchangeId + "/" + marketCode);
+  }
+
+  //즐겨찾기 제거
+  public void removeFavorite(String exchangeId, String marketCode){
+    Set<String> favorites = favoritesByExchange.get(exchangeId);
+    if(favorites != null){
+      favorites.remove(marketCode);
+      System.out.println("🗑️ 즐겨찾기 제거: " + exchangeId + "/" + marketCode);
+    }
+  }
+
+  //시가총액 정보조회
+  private MarketCapInfo getMarketCapInfo(String exchangeId, String marketCode){
+    return marketCapCache
+            .computeIfAbsent(exchangeId, k->new ConcurrentHashMap<>())
+            .computeIfAbsent(marketCode, k->{
+              //캐시에 없으면 API 호출
+              ExchangeClient exchange = findExchangeClient(exchangeId);
+              if(exchange == null) return null;
+
+              return exchange.getMarketCap(maketCode).block();
+              //블록거는건 위험하긴 한것같은데 나중에 확인해보기
+            });
+  }
+
+  //거래소 클라이언트 찾기
+  private ExchaneClient findExchangeClient(String exchangeId){
+    return exchangeClient.stream()
+            .filter(clinet->clint.getExchangeId().equals(exchangeId))
+            .findFirst()
+            .orElse(null);
+  }
+
+  //거래대금 포멧팅
+  private String formatVolume(double volume) {
+    if (volume >= 1_000_000_000_000L) {
+      return String.format("%.1f조", volume / 1_000_000_000_000.0);
+    } else if (volume >= 100_000_000_000L) {
+      return String.format("%.0f억", volume / 100_000_000.0);
+    } else if (volume >= 1_000_000L) {
+      return String.format("%.0f백만", volume / 1_000_000.0);
+    }
+    return String.format("%.0f만", volume / 10_000.0);
+  }
 }

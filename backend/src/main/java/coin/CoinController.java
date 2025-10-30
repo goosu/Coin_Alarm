@@ -15,11 +15,29 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.stream.Collectors;
 
+//20251030 ADD
+import java.util.HashMap;
+import java.util.Map;
+
+
+/** 20251030 수정포인트
+ * ⭐ [수정] CoinController - 새로운 API 엔드포인트 추가
+ *
+ * 변경사항:
+ * - [추가] 거래소별 즐겨찾기 API
+ * - [추가] 알람 설정 API
+ * - [추가] 동적 N분 데이터 조회 API
+ *
+ * 삭제된 API:
+ * - [삭제] getFilteredCoins() → 더 이상 DB에서 조회하지 않음
+ *   (인메모리 스냅샷 버퍼 사용)
+ */
 
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:5173")
 public class CoinController {
+
 
   private final CoinService coinService;
 
