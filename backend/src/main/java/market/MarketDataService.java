@@ -28,7 +28,8 @@ import java.util.stream.Collectors;
 import static coinalarm.Coin_Alarm.AccessingDataJpaApplication.log;
 
 @Service
-public class MarketDataService {
+public class
+MarketDataService {
 
   private final SimpMessagingTemplate messagingTemplate;
   private final UpbitWSC upbitWSC;

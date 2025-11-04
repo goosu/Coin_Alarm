@@ -20,17 +20,13 @@ import static coinalarm.Coin_Alarm.AccessingDataJpaApplication.log;
 public class UpbitClient implements ExchangeClient {
 
   private final WebClient webClient;
-  private final Map<String, Double> dailyVolumeCache = new ConcurrentHashMap<>();
-
-  /*20251022 DEL STR*/
-//  public UpbitClient(WebClient.Builder webClientBuilder) {
-//    this.webClient = webClientBuilder.baseUrl("https://api.upbit.com/v1").build();
-//  }
-  /*20251022 DEL END*/
+  private UpbitWSC upbitWSC;
 
   /*20251022 ADD STR*/
   public UpbitClient(WebClient.Builder webClientBuilder, UpbitWSC upbitWSC) {
-    this.webClient = webClientBuilder.baseUrl("https://api.upbit.com/v1").build();
+    this.webClient = webClientBuilder
+            .baseUrl("https://api.upbit.com/v1")
+            .build();
     this.upbitWSC = upbitWSC;
   }
 
@@ -38,9 +34,12 @@ public class UpbitClient implements ExchangeClient {
   public String getExchangeId(){
     return "UPBIT";
   }
+
   /*20251022 ADD END*/
+  @Override
   // 모든 KRW 마켓 코드 목록을 가져오는 메소드
-  public List<String> getAllKrwMarketCodes() {
+//  public List<String> getAllKrwMarketCodes() {
+  public Mono<List<String>> getAllMarketCodes(){
     return webClient.get()
             .uri("/market/all")
             .retrieve()

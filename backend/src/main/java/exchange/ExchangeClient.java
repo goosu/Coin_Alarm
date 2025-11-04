@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.List;
 
 
-public class ExchangeClient {
+public interface ExchangeClient {
 
   /*거래소 고유 식별자 반환
     업비트, 바이낸스 현물, 바이낸스 선물 등등*/

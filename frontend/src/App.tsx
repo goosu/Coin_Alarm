@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
 import "./index.css"; // 스타일시트 import
 
@@ -257,7 +257,8 @@ export default function App() {
          });
       },
 
-      onStompError: (frame) => {
+
+      : (frame) => {
         // STOMP 프로토콜 에러 발생 시 (연결 에러, 메시지 에러 등)
         console.error('❌ STOMP Broker reported error:', frame.headers['message'], 'Details:', frame.body);
       },
@@ -274,6 +275,7 @@ export default function App() {
 
     // STOMP 클라이언트 활성화
     client.activate();
+    
     stompClientRef.current = client; // Ref에 클라이언트 인스턴스 저장
 
     // 컴포넌트 언마운트 시 STOMP 클라이언트 비활성화
@@ -320,6 +322,9 @@ export default function App() {
 
   // 즐겨찾기 목록이 변경될 때마다 로컬 스토리지에 저장
   useEffect(() => {
+
+
+
     try {
       localStorage.setItem("favorites", JSON.stringify(favorites));
     } catch (error) {
