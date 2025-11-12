@@ -101,7 +101,7 @@ function getChangeColor(change: number) : string{
 }
 
 //20250919 전일대비 % 포맷 함수 ***
-function formatChange(change: number): string{금요일 팝송
+function formatChange(change: number): string{
   const prefix = change > 0 ? '+' : '';
   return `&{prefix}${change.toFixed(2)}%`;
 }
@@ -138,6 +138,7 @@ export default function App() {
   // *** [수정] lastAlarmTimestamps useRef 초기화 및 사용 방식 (ReferenceError 해결) ***
   const lastAlarmTimestamps = useRef<Record<string, number>>({}); // 심볼별 마지막 알람 시간 (쿨타임용)
 
+  //
   // ============================================================================
   // WebSocket Connection & Data Handling (STOMP 버전 - 크게 수정됨)
   // ============================================================================
@@ -258,7 +259,7 @@ export default function App() {
       },
 
 
-      : (frame) => {
+      onStompError: (frame) => {
         // STOMP 프로토콜 에러 발생 시 (연결 에러, 메시지 에러 등)
         console.error('❌ STOMP Broker reported error:', frame.headers['message'], 'Details:', frame.body);
       },
@@ -485,7 +486,10 @@ export default function App() {
           <audio ref={alarmAudioRef} src={SOUND_SRC} preload="auto" style={{ display: 'none' }} />
         </div>
       </header>
-
+      <div className = "flex space-x-4 mt-4 option-setting-boxes">
+      {/** 첫 번째 박스: 거래소설정 */}
+      <H
+      {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
       <div className="top-options-section">
         <h2 className="section-title">코인 필터 & 보기 옵션</h2>
