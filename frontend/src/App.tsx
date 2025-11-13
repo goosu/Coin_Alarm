@@ -486,9 +486,69 @@ export default function App() {
           <audio ref={alarmAudioRef} src={SOUND_SRC} preload="auto" style={{ display: 'none' }} />
         </div>
       </header>
+
+      {/**20251113 작업시작 STR */}
       <div className = "flex space-x-4 mt-4 option-setting-boxes">
-      {/** 첫 번째 박스: 거래소설정 */}
-      <H
+        {/** 첫 번째 박스: 거래소설정 */}
+        <HoverPopover
+          isVisible={showThredsholdSettings}
+          onVisibilityChange={setshowThesholdSettings}
+          className="setting-item"
+          trigger={<div className="setting-box-trigger">알람 설정</div>}
+          content={
+            <div className="p-3">
+              <h4 className="font-bold mb-2">1분 거래대금</h4>
+              <p className="mb-2 text-sm">알람용 최소 거래대금(1분봉)</p>
+              <input
+                type="number"
+                value={globalThreshold}
+                onchange={(e) => setGlobalThreshold(Number(e.target.value)}
+                className="w-full p-2 border rounded"
+                placeholder="예: 30000000"
+              />
+              <p className="mt-2 text-xs text-gray-500"> 현재: {formatMoney(globalThreshold)}</p>
+              {/*다른 알람 하고싶으면 여기로 */}
+            </div>
+          }
+        />
+
+        <HoverPopover
+          isVisible={showDisplaySettings}
+          onVisibilityChange={setShowDisplaySettings}
+          className="setting-item"
+          trigger={<div className="setting-box-trigger">표시 옵션 설정</div>}
+          content={
+            <div className="p-3">
+              <h4 className="font-bold mb-2">코인 목록 표시 옵션</h4>
+              <label className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={showAllCoins}
+                  onChange={() => setShowAllCoins(prev => !prev)}
+                />
+                <span>모든 코인 보기(필터 해제)</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {
+                    if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}
+                    }
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>즐겨찾기만 보기(개발중)</span>
+              </label>
+              {/*여기에 다른 표시 관련 설정 UI추가가능 */}
+            </div>
+          }
+        />
+      </div>
+    </div>
+      {/**20251113 작업시작 END */}
+
       {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
       <div className="top-options-section">
