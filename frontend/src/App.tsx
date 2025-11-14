@@ -11,6 +11,39 @@ import SockJS from 'sockjs-client';
 // Types & Constants
 // ============================================================================
 
+//20251113 Add STR
+type HoverPopoverProps = {
+  trigger: React.ReactNode; //팝업트리거
+  content: React.ReactNode; // 팝업 안에 들어갈 내용
+  onVisibilityChange: (visible: boolean) => void; // 팝업표시 여부변경 콜백
+  className?: string; //외부에서 전달받을 추가 CSS 클래스
+  }
+//cgc 이건 뭐하는거야?
+function HoverPopover({trigger, content, isVisible, onVisibilityChange, className} : HoverPopoverProps){
+  //Popover 자체의 상태관리 (App 컴포넌트와 연동)
+  //마우스 진입/이탈 시 부모의 onVisibilityChange 콜백을 호출 //cgc 부모는 뭐지?
+  const handleMouseEnter = () => onVisibiltyChange(true);
+  const handleMouseLeave = () => onVisibilityChange(false);
+
+  return(
+    <div
+      className={`hover-popover-container &{className || ''}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+    {/**팝업을 띄울 트리거 요소 */}
+    {trigger}
+    {/**팝업 내용 */}
+    {isVisible && (
+      <div className = "hover-popover-content">
+        {content}
+      </div>
+     )}
+    </div>
+  );
+}
+
+//20251113 Add END
 // 코인 데이터 타입 정의 (백엔드 CoinResponseDto와 App.tsx UI/로직 매핑에 맞춰 수정됨)
 type Coin = {
   symbol: string;
