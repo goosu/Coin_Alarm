@@ -156,6 +156,14 @@ export default function App() {
   const [alerts, setAlerts] = useState<{ id: string; symbol: string; msg: string; ts: number }[]>([]); // 알람 로그
   const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string | null>(null); // 현재 선택된 코인 심볼 (디테일 패널용)
 
+//20251113 Add STR
+  //두 개의 설정박스 팝업 가시성상태
+  const [showThresholdSettings, setShowThresholdSettings] = useState(false);
+  const [showDisplaySettings, setShowDisplaySettings] = useState(false);
+
+  //임계값 설정
+  const [globalThreshold, setGlobalThreshold] = useLocalStorage<number>('globalAlarmThreshold', ALARM_THRESHOLD);
+//20251113 Add END
   // 코인 목록 필터 상태 (시가총액 기준)
   const [filters, setFilters] = useLocalStorage('coinFilters', {
     all: true, large: false, mid: false, small: false
@@ -531,11 +539,12 @@ export default function App() {
           content={
             <div className="p-3">
               <h4 className="font-bold mb-2">1분 거래대금</h4>
+
               <p className="mb-2 text-sm">알람용 최소 거래대금(1분봉)</p>
               <input
                 type="number"
                 value={globalThreshold}
-                onchange={(e) => setGlobalThreshold(Number(e.target.value)}
+                onChange={(e) => setGlobalThreshold(Number(e.target.value))}
                 className="w-full p-2 border rounded"
                 placeholder="예: 30000000"
               />
@@ -581,7 +590,6 @@ export default function App() {
       </div>
     </div>
       {/**20251113 작업시작 END */}
-
       {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
       <div className="top-options-section">
@@ -589,19 +597,19 @@ export default function App() {
         <div className="flex space-x-4 mb-4 filter-checkboxes">
           {/* 시가총액 필터 체크박스 */}
           <label>
-            <input type="checkbox" checked={filters.all} onChange={() => handleCoinFilterChange('all')} />{' '}
+            <input type="checkbox" checked={filters.all} onChange={() => handleCoinFilterChange('all')} />
             전체
           </label>
           <label>
-            <input type="checkbox" checked={filters.large} onChange={() => handleCoinFilterChange('large')} />{' '}
+            <input type="checkbox" checked={filters.large} onChange={() => handleCoinFilterChange('large')} />
             대형(5조 이상)
           </label>
           <label>
-            <input type="checkbox" checked={filters.mid} onChange={() => handleCoinFilterChange('mid')} />{' '}
+            <input type="checkbox" checked={filters.mid} onChange={() => handleCoinFilterChange('mid')} />
             중형(7천억 이상)
           </label>
           <label>
-            <input type="checkbox" checked={filters.small} onChange={() => handleCoinFilterChange('small')} />{' '}
+            <input type="checkbox" checked={filters.small} onChange={() => handleCoinFilterChange('small')} />
             소형(5백억 이상)
           </label>
         </div>
