@@ -532,8 +532,8 @@ export default function App() {
       <div className = "flex space-x-4 mt-4 option-setting-boxes">
         {/** 첫 번째 박스: 거래소설정 */}
         <HoverPopover
-          isVisible={showThredsholdSettings}
-          onVisibilityChange={setshowThesholdSettings}
+          isVisible={showThresholdSettings}
+          onVisibilityChange={setshowThresholdSettings}
           className="setting-item"
           trigger={<div className="setting-box-trigger">알람 설정</div>}
           content={
@@ -588,40 +588,10 @@ export default function App() {
           }
         />
       </div>
-    </div>
       {/**20251113 작업시작 END */}
       {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
-      <div className="top-options-section">
-        <h2 className="section-title">코인 필터 & 보기 옵션</h2>
-        <div className="flex space-x-4 mb-4 filter-checkboxes">
-          {/* 시가총액 필터 체크박스 */}
-          <label>
-            <input type="checkbox" checked={filters.all} onChange={() => handleCoinFilterChange('all')} />
-            전체
-          </label>
-          <label>
-            <input type="checkbox" checked={filters.large} onChange={() => handleCoinFilterChange('large')} />
-            대형(5조 이상)
-          </label>
-          <label>
-            <input type="checkbox" checked={filters.mid} onChange={() => handleCoinFilterChange('mid')} />
-            중형(7천억 이상)
-          </label>
-          <label>
-            <input type="checkbox" checked={filters.small} onChange={() => handleCoinFilterChange('small')} />
-            소형(5백억 이상)
-          </label>
-        </div>
 
-        {/* '모든 종목 보기' 토글 버튼 */}
-        <button
-          onClick={() => setShowAllCoins(prev => !prev)}
-          className="toggle-all-coins-btn"
-        >
-          {showAllCoins ? "필터 적용 보기" : "모든 종목 보기"}
-        </button>
-      </div>
 
       {/* ======================= 중앙 메인 영역 (코인목록 및 알람 로그) ======================= */}
       <main className="main-content-area">
