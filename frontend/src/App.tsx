@@ -22,12 +22,12 @@ type HoverPopoverProps = {
 function HoverPopover({trigger, content, isVisible, onVisibilityChange, className} : HoverPopoverProps){
   //Popover 자체의 상태관리 (App 컴포넌트와 연동)
   //마우스 진입/이탈 시 부모의 onVisibilityChange 콜백을 호출 //cgc 부모는 뭐지?
-  const handleMouseEnter = () => onVisibiltyChange(true);
+  const handleMouseEnter = () => onVisibilityChange(true);
   const handleMouseLeave = () => onVisibilityChange(false);
 
   return(
     <div
-      className={`hover-popover-container &{className || ''}`}
+      className={`hover-popover-container ${className || ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -136,7 +136,7 @@ function getChangeColor(change: number) : string{
 //20250919 전일대비 % 포맷 함수 ***
 function formatChange(change: number): string{
   const prefix = change > 0 ? '+' : '';
-  return `&{prefix}${change.toFixed(2)}%`;
+  return `${prefix}${change.toFixed(2)}%`;
 }
 
 
@@ -533,7 +533,7 @@ export default function App() {
         {/** 첫 번째 박스: 거래소설정 */}
         <HoverPopover
           isVisible={showThresholdSettings}
-          onVisibilityChange={setshowThresholdSettings}
+          onVisibilityChange={setShowThresholdSettings}
           className="setting-item"
           trigger={<div className="setting-box-trigger">알람 설정</div>}
           content={
@@ -566,7 +566,8 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={showAllCoins}
-                  onChange={() => setShowAllCoins(prev => !prev)}
+                  onChange={() => setShowAllCoins(prev => !prev)
+                  }
                 />
                 <span>모든 코인 보기(필터 해제)</span>
               </label>
@@ -575,9 +576,7 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={favorites.length>0 && !showAllCoins}
-                  onChange={() => {
-                    if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}
-                    }
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
                   }
                   disabled={showAllCoins}
                 />
@@ -588,10 +587,40 @@ export default function App() {
           }
         />
       </div>
+
       {/**20251113 작업시작 END */}
       {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
+      <div className="top-options-section">
+        <h2 className="section-title">코인 필터 & 보기 옵션</h2>
+        <div className="flex space-x-4 mb-4 filter-checkboxes">
+          {/* 시가총액 필터 체크박스 */}
+          <label>
+            <input type="checkbox" checked={filters.all} onChange={() => handleCoinFilterChange('all')}/>
+              <span>전체</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.large} onChange={() => handleCoinFilterChange('large')}/>
+              <span>대형(5조 이상)</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.mid} onChange={() => handleCoinFilterChange('mid')}/>
+              <span>중형(7천억 이상)</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={filters.small} onChange={() => handleCoinFilterChange('small')}/>
+              <span>소형(5백억 이상)</span>
+          </label>
+        </div>
 
+        {/* '모든 종목 보기' 토글 버튼 */}
+        <button
+          onClick={() => setShowAllCoins(prev => !prev)}
+          className="toggle-all-coins-btn"
+        >
+          {showAllCoins ? "필터 적용 보기" : "모든 종목 보기"}
+        </button>
+      </div>
 
       {/* ======================= 중앙 메인 영역 (코인목록 및 알람 로그) ======================= */}
       <main className="main-content-area">
