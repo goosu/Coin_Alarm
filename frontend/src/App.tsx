@@ -1,6 +1,7 @@
  import React, { useEffect, useRef, useState, useCallback } from "react";
 import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
 import "./index.css"; // 스타일시트 import
+import "./App.css"; // 스타일시트 import
 
 // *** [신규] STOMP / SockJS 관련 임포트 (이전 순수 WebSocket 대신 사용) ***
 import { Client } from '@stomp/stompjs';
