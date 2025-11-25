@@ -531,16 +531,124 @@ export default function App() {
 
       {/**20251113 작업시작 STR */}
       <div className = "flex space-x-4 mt-4 option-setting-boxes">
-        {/** 첫 번째 박스: 거래소설정 */}
+        {/** 첫 번째 박스: 거래소 설정 */}
         <HoverPopover
           isVisible={showThresholdSettings}
           onVisibilityChange={setShowThresholdSettings}
           className="setting-item"
-          trigger={<div className="setting-box-trigger">알람 설정</div>}
+          trigger={<div className="setting-box-trigger">거래소 설정</div>}
           content={
             <div className="p-3">
-              <h4 className="font-bold mb-2">1분 거래대금</h4>
+              <h4 className="font-bold mb-2">표시</h4>
+              {/**ShowAllCoins 모두보기 없앨지? && 토글 */}
+                <label className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={showAllCoins}
+                    onChange={() => setShowAllCoins(prev => !prev)
+                    }
+                  />
+                  <span>모든 거래소</span>
+                </label>
 
+              {/**현)바이낸스*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>현) 바이낸스</span>
+              </label>
+              {/**선)바이낸스*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>선) 바이낸스</span>
+              </label>
+
+              {/**바이비트*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>바이비트</span>
+              </label>
+
+              {/**OKX*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>OKX</span>
+              </label>
+
+              {/**Upbit*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>Upbit</span>
+              </label>
+
+              {/**빗썸*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>빗썸</span>
+              </label>
+
+              {/**비트겟*/}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={favorites.length>0 && !showAllCoins}
+                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
+                  }
+                  disabled={showAllCoins}
+                />
+                <span>비트겟</span>
+              </label>
+
+            </div>
+          }
+        />
+
+        {/** 두 번째 박스: 거래대금 설정 */}
+        <HoverPopover
+          isVisible={showDisplaySettings}
+          onVisibilityChange={setShowDisplaySettings}
+          className="setting-item"
+          trigger={<div className="setting-box-trigger">거래대금 설정</div>}
+          content={
+            <div className="p-3">
+              <h4 className="font-bold mb-2">거래대금 옵션</h4>
+
+              {/**해당하는 칸을 여러개 늘려서 추가하면되겠네 밑에 빈칸좀 추가하고*/}
               <p className="mb-2 text-sm">알람용 최소 거래대금(1분봉)</p>
               <input
                 type="number"
@@ -550,40 +658,8 @@ export default function App() {
                 placeholder="예: 30000000"
               />
               <p className="mt-2 text-xs text-gray-500"> 현재: {formatMoney(globalThreshold)}</p>
-              {/*다른 알람 하고싶으면 여기로 */}
-            </div>
-          }
-        />
 
-        <HoverPopover
-          isVisible={showDisplaySettings}
-          onVisibilityChange={setShowDisplaySettings}
-          className="setting-item"
-          trigger={<div className="setting-box-trigger">표시 옵션 설정</div>}
-          content={
-            <div className="p-3">
-              <h4 className="font-bold mb-2">코인 목록 표시 옵션</h4>
-              <label className="flex items-center space-x-2 mb-2">
-                <input
-                  type="checkbox"
-                  checked={showAllCoins}
-                  onChange={() => setShowAllCoins(prev => !prev)
-                  }
-                />
-                <span>모든 코인 보기(필터 해제)</span>
-              </label>
 
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={favorites.length>0 && !showAllCoins}
-                  onChange={() => {if(!showAllCoins){/*여기에 즐겨찾기만 보기 로직 추가*/}}
-                  }
-                  disabled={showAllCoins}
-                />
-                <span>즐겨찾기만 보기(개발중)</span>
-              </label>
-              {/*여기에 다른 표시 관련 설정 UI추가가능 */}
             </div>
           }
         />
