@@ -1,7 +1,8 @@
- import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { fetchFavorites, addFavorite, removeFavorite } from "./api/favorites"; // 새로 생성한 파일 import
 import "./index.css"; // 스타일시트 import
 import "./App.css"; // 스타일시트 import
+import { cloneElement } from "react";
 
 // *** [신규] STOMP / SockJS 관련 임포트 (이전 순수 WebSocket 대신 사용) ***
 import { Client } from '@stomp/stompjs';
@@ -18,33 +19,105 @@ type HoverPopoverProps = {
   content: React.ReactNode; // 팝업 안에 들어갈 내용
   onVisibilityChange: (visible: boolean) => void; // 팝업표시 여부변경 콜백
   className?: string; //외부에서 전달받을 추가 CSS 클래스
+  hoverEnabled?: boolean
   }
 //cgc 이건 뭐하는거야?
-function HoverPopover({trigger, content, isVisible, onVisibilityChange, className} : HoverPopoverProps){
+function HoverPopover({trigger, content, isVisible, onVisibilityChange, className, hoverEnabled = true}
+  : HoverPopoverProps){
   //Popover 자체의 상태관리 (App 컴포넌트와 연동)
   //마우스 진입/이탈 시 부모의 onVisibilityChange 콜백을 호출 //cgc 부모는 뭐지?
   const handleMouseEnter = () => onVisibilityChange(true);
   const handleMouseLeave = () => onVisibilityChange(false);
+  //20251126 버튼식 팝업 (거래소, 거래대금 설정) STR
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if(typeof isVisible === "boolean"){
+      setOpen(isVisible);
+      setPinned(false); //왜있는지 일단은 모르겠음
+      }
+  },[isVisible]); //isVisible 상태변화 있을시 실행
+
+  useEffect(()=>{
+    onVisibilityChange?.(open);
+  },[open, onVisibilityChange]);
+
+  useEffect(()=>{
+    function onDocClick(e: React.MouseEvent){
+      if(!containerRef.current) return;
+      if(containerRef.current.contains(e.target as Node)) return;
+      if(open){
+        setOpen(false);
+        setPinned(false);
+        }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return()=>document.removeEventListener("mousedown", onDocClick);
+  },[open, containerRef]);
+
+//   const handleMouseEnter = () => {
+//     if(!hoverEnabled) return;
+//     if(!pinned) setOpen(true);
+//   };
+//
+//   const handleMouseLeave = () => {
+//     if(!hoverEnabled) return;
+//     if(!pinned) setOpen(false);
+//   };
+
+  // 트리거 클릭: open 토글 + pinned 토글
+  const handleTriggerClick = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setOpen(prev => {
+      const next = !prev;
+      // pinned은 클릭으로 켜면 고정, 클릭으로 끄면 pinned 해제
+      setPinned(next ? true : false);
+      return next;
+    });
+  };
+
+  //이부분은 나중에 좀더보자
+  // trigger가 React element면 onClick을 합성(기존 핸들러 보존)
+  const triggerNode = React.isValidElement(trigger)
+  ? cloneElement(trigger as React.ReactElement, {
+  onClick: (e: React.MouseEvent) => {
+  (trigger as any).props?.onClick?.(e);
+  handleTriggerClick(e);
+  },
+  // keyboard 접근성
+  tabIndex: 0,
+  onKeyDown: (ev: React.KeyboardEvent) => {
+  if ((trigger as any).props?.onKeyDown) (trigger as any).props.onKeyDown(ev);
+  if (ev.key === "Enter" || ev.key === " ") handleTriggerClick();
+  }
+  })
+  : <div onClick={handleTriggerClick} role="button" tabIndex={0}>{trigger}</div>;
+
+  //20251126 버튼식 팝업 (거래소, 거래대금 설정) END
   return(
     <div
       className={`hover-popover-container ${className || ''}`}
+      //ref={containerRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      //onClick={()=> setOpen(!open)}
+      style={{ display: "inline-block", verticalAlign: "top" }}
     >
     {/**팝업을 띄울 트리거 요소 */}
-    {trigger}
+    {triggerNode}
     {/**팝업 내용 */}
-    {isVisible && (
-      <div className = "hover-popover-content">
+    {open && (
+      <div className = "hover-popover-content" role="dialog" aria-hidden={!open}>
         {content}
       </div>
      )}
     </div>
   );
 }
-
 //20251113 Add END
+
 // 코인 데이터 타입 정의 (백엔드 CoinResponseDto와 App.tsx UI/로직 매핑에 맞춰 수정됨)
 type Coin = {
   symbol: string;
@@ -365,9 +438,6 @@ export default function App() {
 
   // 즐겨찾기 목록이 변경될 때마다 로컬 스토리지에 저장
   useEffect(() => {
-
-
-
     try {
       localStorage.setItem("favorites", JSON.stringify(favorites));
     } catch (error) {
@@ -664,8 +734,8 @@ export default function App() {
           }
         />
       </div>
-
       {/**20251113 작업시작 END */}
+
       {/*여기에 이걸 넣으면 안됨 나중에 옮겨야지  */}
       {/* ======================= 상단 옵션 섹션 (시가총액 필터 & 모든 종목 보기 토글) ======================= */}
       <div className="top-options-section">
