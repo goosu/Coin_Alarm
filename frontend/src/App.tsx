@@ -612,6 +612,7 @@ export default function App() {
               <h4 className="font-bold mb-2">표시</h4>
               {/**ShowAllCoins 모두보기 없앨지? && 토글 */}
                 <label className="flex items-center space-x-2 mb-2">
+                {/**cgc 이부분을 바꾸면 될듯  체크박스형태를 다른것으로 바뀌게  */}
                   <input
                     type="checkbox"
                     checked={showAllCoins}
