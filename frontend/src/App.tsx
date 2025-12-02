@@ -229,6 +229,21 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useLocalStorage<boolean>("soundEnabled", false); // 알람 사운드 활성화 여부
   const [alerts, setAlerts] = useState<{ id: string; symbol: string; msg: string; ts: number }[]>([]); // 알람 로그
   const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string | null>(null); // 현재 선택된 코인 심볼 (디테일 패널용)
+//20251202 토글 거래소선택 STR cgc
+  const [isAllExchangesMode, setIsAllExchangesMode] = useState(true); // 모든 거래소 모드 활성화 여부
+
+  //거래소 모드를 토글
+  const handleExchangeModeToggle = (mode: 'all' | 'individual') => {
+    if(mode == 'all'){
+      setIsAllExchangesMode(true);
+      console.log("모든 거래소 활성화");
+      }
+    else{
+      setIsAllExchangesMode(false);
+      console.log("개별 거래소 활성화");
+      }
+  };
+//20251202 토글 거래소선택 END
 
 //20251113 Add STR
   //두 개의 설정박스 팝업 가시성상태
@@ -598,7 +613,46 @@ export default function App() {
           <audio ref={alarmAudioRef} src={SOUND_SRC} preload="auto" style={{ display: 'none' }} />
         </div>
       </header>
+{/** 20251202 토글 거래소선택 STR cgc*/}
+      {/** 이걸 안에넣기 */}
+      <div className="settings-section">
+        <h3>거래소 선택</h3>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
 
+        {/**모든 거래소 토글 */}
+          <span
+            {/** 연두색 아니면 기본글자색 */}
+            className = {isAllExchangesMode ? 'text-lime-300' : 'text-white'}
+            onClick={() => handleExchangeModeToggle('all')}
+            style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
+            {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정 */}
+          >
+            모든 거래소
+          </span>
+        {/**개별 거래소 토글 */}
+          <span style={{ color: '#ccc' }}>|</span> {/* 구분선 cgc 추후에 옮길예정*/}
+            className = {!isAllExchangesMode ? 'text-lime-300' : 'text-gray-500'}
+            onClick = {() => handleExchangeModeToggle('individual')}
+            {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정*/}
+            style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
+          >
+          개별 거래소
+          </span>
+        </div>
+
+        {/** 개별거래소 모드일 때 추가선택 */}
+        {!isAllExchangeMode && (
+          <div style={{ marginTop: '10px' }}>
+            <label htmlFor="selectExchange"> 거래소 선택: </label>
+            <select id="selectExchange" style={{ marginLeft: '5px' }}>
+              <option value="binance">바이낸스</option>
+              <option value="upbit">업비트</option>
+              <option value="bithumb">빗썸</option>
+            </select>
+        </div>
+
+
+{/** 20251202 토글 거래소선택 END */}
       {/**20251113 작업시작 STR */}
       <div className = "flex space-x-4 mt-4 option-setting-boxes">
         {/** 첫 번째 박스: 거래소 설정 */}
