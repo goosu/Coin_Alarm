@@ -618,30 +618,29 @@ export default function App() {
       <div className="settings-section">
         <h3>거래소 선택</h3>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-
-        {/**모든 거래소 토글 */}
-          <span
-            {/** 연두색 아니면 기본글자색 */}
-            className = {isAllExchangesMode ? 'text-lime-300' : 'text-white'}
-            onClick={() => handleExchangeModeToggle('all')}
-            style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
-            {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정 */}
-          >
-            모든 거래소
-          </span>
-        {/**개별 거래소 토글 */}
-          <span style={{ color: '#ccc' }}>|</span> {/* 구분선 cgc 추후에 옮길예정*/}
-            className = {!isAllExchangesMode ? 'text-lime-300' : 'text-gray-500'}
-            onClick = {() => handleExchangeModeToggle('individual')}
-            {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정*/}
-            style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
-          >
-          개별 거래소
-          </span>
-        </div>
+            {/**모든 거래소 토글 */}
+              <span
+                className={isAllExchangesMode ? 'text-lime-300' : 'text-gray-500'}
+                onClick={() => handleExchangeModeToggle('all')}
+                style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
+              >
+                모든 거래소
+              </span>
+                {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정 */}
+            {/**개별 거래소 토글 */}
+              <span style={{ color: '#ccc' }}>|</span> {/* 구분선 cgc 추후에 옮길예정*/}
+              <span
+                className={!isAllExchangesMode ? 'text-lime-300' : 'text-gray-500'}
+                onClick={() => handleExchangeModeToggle('individual')}
+                style={{ cursor: 'pointer', fontWeight: !isAllExchangesMode ? 'bold' : 'normal' }}
+              >
+                {/** 선택 시 볼드체 추가 cgc 추후에 옮길예정*/}
+              개별 거래소
+              </span>
+          </div>
 
         {/** 개별거래소 모드일 때 추가선택 */}
-        {!isAllExchangeMode && (
+        {!isAllExchangesMode && (
           <div style={{ marginTop: '10px' }}>
             <label htmlFor="selectExchange"> 거래소 선택: </label>
             <select id="selectExchange" style={{ marginLeft: '5px' }}>
@@ -649,9 +648,9 @@ export default function App() {
               <option value="upbit">업비트</option>
               <option value="bithumb">빗썸</option>
             </select>
-        </div>
-
-
+          </div>
+        )}
+      </div>
 {/** 20251202 토글 거래소선택 END */}
       {/**20251113 작업시작 STR */}
       <div className = "flex space-x-4 mt-4 option-setting-boxes">
