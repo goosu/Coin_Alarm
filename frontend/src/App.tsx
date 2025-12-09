@@ -8,6 +8,9 @@ import { cloneElement } from "react";
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
+//20251209 토글(썸) STR
+// import ToggleSwitch from '.ToggleSwitch';
+//20251209 토글(썸) END
 
 // ============================================================================
 // Types & Constants
@@ -244,6 +247,10 @@ export default function App() {
       }
   };
 //20251202 토글 거래소선택 END
+
+//20251209 토글(썸) STR
+
+//20251209 토글(썸) END
 
 //20251113 Add STR
   //두 개의 설정박스 팝업 가시성상태
@@ -662,6 +669,9 @@ export default function App() {
           trigger={<div className="setting-box-trigger">거래소 설정</div>}
           content={
             <div className="p-3">
+            {/*20251209 토글(썸) STR */}
+
+            {/*20251209 토글(썸) END */}
               <h4 className="font-bold mb-2">표시</h4>
               {/**ShowAllCoins 모두보기 없앨지? && 토글 */}
                 <label className="flex items-center space-x-2 mb-2">
